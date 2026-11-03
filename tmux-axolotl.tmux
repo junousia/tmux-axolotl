@@ -3,34 +3,46 @@
 # Needs a Nerd Font and the tmux-git-workspaces plugin (which provides
 # @workspace / @workspace-active).
 #
+# Layout: tabs on the left; branch segment and workspace pill on the right.
+# @axolotl-pill 'left' moves the pill to the left edge instead.
+#
 # Colours are tiered and chosen per client at render time:
 #   truecolor (RGB)  refined palette with soft surface tones
 #   256 colours      tuned colourN values
 #   basic            the terminal's ANSI palette, so the bar follows its theme
-# A @axolotl-* option overrides that colour in every tier.
+# An @axolotl-* option overrides that colour in every tier.
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 opt() { local v; v=$(tmux show-option -gqv "$1"); echo "${v:-$2}"; }
 
 # glyphs as UTF-8 bytes (independent of the locale this script runs in)
-arrow=$'\xee\x82\xb0'; lcap=$'\xee\x82\xb6'; rcap=$'\xee\x82\xb4'
+rarrow=$'\xee\x82\xb0'; larrow=$'\xee\x82\xb2'
+lcap=$'\xee\x82\xb6'; rcap=$'\xee\x82\xb4'
 branch_icon=$'\xee\x82\xa0'; folder=$'\xef\x81\xbb'
 bell=$'\xef\x83\xb3'; zoom=$'\xef\x80\x8e'
 
 ws='#{?#{@workspace-active},#{b:@workspace-active},#S}'
 git="#(git -C '#{@workspace-active}' branch --show-current 2>/dev/null)"
+pill_pos=$(opt @axolotl-pill right)
 
 # build <tier> <accent> <text> <muted> <dark> <surface> <active-surface>
 build() {
   local t=$1 accent=$2 text=$3 muted=$4 dark=$5 surf=$6 act=$7
+  local body="#[fg=$dark]#[bg=$accent]#[bold]$folder $ws #[nobold]"
 
-  # workspace pill; with a branch segment unless the workspace is (no repo)
-  local pill="#[fg=$accent]#[bg=default]$lcap#[fg=$dark]#[bg=$accent]#[bold]$folder $ws #[nobold]"
-  tmux set-option -g "@axolotl-left-git-$t" \
-    "$pill#[fg=$accent]#[bg=$surf]$arrow#[fg=$text]#[bg=$surf] $branch_icon $git #[fg=$surf]#[bg=default]$arrow "
-  tmux set-option -g "@axolotl-left-nogit-$t" \
-    "$pill#[fg=$accent]#[bg=default]$arrow "
-
+  if [[ $pill_pos == left ]]; then
+    tmux set-option -g "@axolotl-left-$t" \
+      "#[fg=$accent]#[bg=default]$lcap$body#[fg=$accent]#[bg=default]$rarrow "
+    tmux set-option -g "@axolotl-right-git-$t" \
+      "#[fg=$surf]#[bg=default]$lcap#[fg=$text]#[bg=$surf]$branch_icon $git #[fg=$surf]#[bg=default]$rcap "
+    tmux set-option -g "@axolotl-right-nogit-$t" ""
+  else
+    tmux set-option -g "@axolotl-left-$t" ""
+    tmux set-option -g "@axolotl-right-git-$t" \
+      "#[fg=$surf]#[bg=default]$larrow#[fg=$text]#[bg=$surf] $branch_icon $git #[fg=$accent]#[bg=$surf]$larrow$body#[fg=$accent]#[bg=default]$rcap "
+    tmux set-option -g "@axolotl-right-nogit-$t" \
+      "#[fg=$accent]#[bg=default]$larrow$body#[fg=$accent]#[bg=default]$rcap "
+  fi
 
   tmux set-option -g "@axolotl-win-$t" \
     "#[fg=$muted] #I #W#{?window_bell_flag,#[fg=$accent] $bell,} "
@@ -55,9 +67,10 @@ tier() { echo "#{?$rgb,#{E:@axolotl-$1-rgb},#{?$c256,#{E:@axolotl-$1-256},#{E:@a
 nogit='#{==:#{@workspace-active},(no repo)}'
 
 tmux set-option -g status-style "bg=default,fg=default"
-tmux set-option -g status-left-length 80
+tmux set-option -g status-left-length 60
+tmux set-option -g status-right-length 80
 tmux set-option -g window-status-separator ''
-tmux set-option -g status-left "#{?$nogit,$(tier left-nogit),$(tier left-git)}"
-tmux set-option -g status-right ""
+tmux set-option -g status-left "$(tier left)"
+tmux set-option -g status-right "#{?$nogit,$(tier right-nogit),$(tier right-git)}"
 tmux set-option -g window-status-format "$(tier win)"
 tmux set-option -g window-status-current-format "$(tier cur)"

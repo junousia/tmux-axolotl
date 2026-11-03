@@ -3,13 +3,19 @@
 A tmux status bar with a UI feel: powerline pill and rounded tabs, with colours that adapt to your terminal. Works best with [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces), which it uses to group windows by git repository.
 
 ```
- ws-a  master  (0 shell) 1 vim
+ (0 shell) 1 vim                                           master  ws-a
 ```
 
 The bar is built from small widgets with Nerd Font glyphs:
 
-- **Left, workspace pill:** the current workspace in an accent pill, joined by a powerline arrow to a branch segment (omitted outside a git repo).
-- **Middle, tabs:** only the current workspace's windows. The active one is a rounded tab with an accent index; others are muted. Bell and zoom each get a glyph.
+- **Left, tabs:** only the current workspace's windows. The active one is a rounded tab with an accent index; others are muted. Bell and zoom each get a glyph.
+- **Right, branch and workspace pill:** the git branch in a soft segment, then the workspace name in an accent pill (the branch segment is omitted outside a git repo).
+
+To put the pill on the left edge instead (branch stays on the right):
+
+```tmux
+set -g @axolotl-pill 'left'
+```
 
 ## Colours
 
