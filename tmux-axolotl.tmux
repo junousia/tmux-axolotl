@@ -5,6 +5,7 @@
 #
 # Layout: tabs on the left; branch segment and workspace pill on the right.
 # @axolotl-pill 'left' moves the pill to the left edge instead.
+# @axolotl-numbers 'off' hides the window numbers in the tabs.
 #
 # Colours: @axolotl-scheme picks a palette (default 'terminal': the terminal's
 # own ANSI colours, so the bar follows your terminal theme). Named schemes in
@@ -27,6 +28,7 @@ ws='#{?#{@workspace-active},#{b:@workspace-active},#S}'
 git="#(git -C '#{@workspace-active}' branch --show-current 2>/dev/null)"
 pill_pos=$(opt @axolotl-pill right)
 scheme=$(opt @axolotl-scheme terminal)
+numbers=$(opt @axolotl-numbers on)
 
 # nearest xterm-256 colour for #rrggbb (6x6x6 cube or grayscale ramp)
 levels=(0 95 135 175 215 255)
@@ -73,6 +75,9 @@ build() {
   local accent=${pal[$t-accent]} text=${pal[$t-fg]} muted=${pal[$t-muted]}
   local dark=${pal[$t-dark]} surf=${pal[$t-surface]} act=${pal[$t-active]}
   local body="#[fg=$dark]#[bg=$accent]#[bold]$folder $ws #[nobold]"
+  # window numbers: the active tab's accent moves to its name when they're hidden
+  local num="#I " cur_text="#[fg=$accent]#I #[fg=$text]#W"
+  if [[ $numbers == off ]]; then num=""; cur_text="#[fg=$accent]#W"; fi
 
   if [[ $pill_pos == left ]]; then
     tmux set-option -g "@axolotl-left-$t" \
@@ -89,9 +94,9 @@ build() {
   fi
 
   tmux set-option -g "@axolotl-win-$t" \
-    "#[fg=$muted] #I #W#{?window_bell_flag,#[fg=$accent] $bell,} "
+    "#[fg=$muted] ${num}#W#{?window_bell_flag,#[fg=$accent] $bell,} "
   tmux set-option -g "@axolotl-cur-$t" \
-    "#[fg=$act]#[bg=default]$lcap#[fg=$accent]#[bg=$act]#[bold]#I #[fg=$text]#W#[nobold]#{?window_zoomed_flag,#[fg=$accent] $zoom,}#[fg=$act]#[bg=default]$rcap"
+    "#[fg=$act]#[bg=default]$lcap#[fg=$accent]#[bg=$act]#[bold]${cur_text}#[nobold]#{?window_zoomed_flag,#[fg=$accent] $zoom,}#[fg=$act]#[bg=default]$rcap"
 }
 build rgb; build 256; build ansi
 

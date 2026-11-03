@@ -57,6 +57,7 @@ Any tmux colour works: ANSI names (`yellow`, `brightblack`), `colourN`, or `#rrg
 
 ```tmux
 set -g @axolotl-pill 'right'          # or 'left'; the branch stays on the right
+set -g @axolotl-numbers 'on'          # 'off' hides window numbers (the active tab's name takes the accent)
 set -g @axolotl-accent 'yellow'       # pill, active tab index, bell glyph
 set -g @axolotl-fg 'white'            # text on the branch segment and active tab
 set -g @axolotl-muted 'brightblack'   # inactive windows
