@@ -1,16 +1,15 @@
 # tmux-axolotl
 
-A tmux status bar with a UI feel: powerline pill, rounded tabs and chips, with colours that adapt to your terminal. Works best with [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces), which it uses to group windows by git repository.
+A tmux status bar with a UI feel: powerline pill and rounded tabs, with colours that adapt to your terminal. Works best with [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces), which it uses to group windows by git repository.
 
 ```
- ws-a  master  (0 shell) 1 vim                         ws-b 1  ws-c 1  (no repo) 1
+ ws-a  master  (0 shell) 1 vim
 ```
 
 The bar is built from small widgets with Nerd Font glyphs:
 
 - **Left, workspace pill:** the current workspace in an accent pill, joined by a powerline arrow to a branch segment (omitted outside a git repo).
 - **Middle, tabs:** only the current workspace's windows. The active one is a rounded tab with an accent index; others are muted. Bell and zoom each get a glyph.
-- **Right, chips:** every other workspace as a rounded chip with its window count. An accent dot means a window there rang the bell.
 
 ## Colours
 
@@ -44,8 +43,8 @@ set -g @plugin 'junousia/tmux-git-workspaces'
 Any tmux colour works: ANSI names (`yellow`, `brightblack`), `colourN`, or `#rrggbb`. An option overrides that colour in every palette tier.
 
 ```tmux
-set -g @axolotl-accent 'yellow'       # pill, active tab index, bell dot
-set -g @axolotl-fg 'white'            # text on tabs and chips
+set -g @axolotl-accent 'yellow'       # pill, active tab index, bell glyph
+set -g @axolotl-fg 'white'            # text on the branch segment and active tab
 set -g @axolotl-muted 'brightblack'   # inactive windows
 set -g @axolotl-dark 'black'          # text on the accent pill
 ```

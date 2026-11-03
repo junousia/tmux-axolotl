@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tmux-axolotl: status bar with a UI feel: powerline pill, rounded tabs and
-# chips. Needs a Nerd Font and the tmux-git-workspaces plugin (which provides
+# tmux-axolotl: status bar with a UI feel: powerline pill and rounded tabs.
+# Needs a Nerd Font and the tmux-git-workspaces plugin (which provides
 # @workspace / @workspace-active).
 #
 # Colours are tiered and chosen per client at render time:
@@ -31,8 +31,6 @@ build() {
   tmux set-option -g "@axolotl-left-nogit-$t" \
     "$pill#[fg=$accent]#[bg=default]$arrow "
 
-  tmux set-option -g "@axolotl-right-$t" \
-    "#('$dir/scripts/others.sh' '#{@workspace-active}' '$surf' '$text' '$accent')#[default]"
 
   tmux set-option -g "@axolotl-win-$t" \
     "#[fg=$muted] #I #W#{?window_bell_flag,#[fg=$accent] $bell,} "
@@ -58,9 +56,8 @@ nogit='#{==:#{@workspace-active},(no repo)}'
 
 tmux set-option -g status-style "bg=default,fg=default"
 tmux set-option -g status-left-length 80
-tmux set-option -g status-right-length 160
 tmux set-option -g window-status-separator ''
 tmux set-option -g status-left "#{?$nogit,$(tier left-nogit),$(tier left-git)}"
-tmux set-option -g status-right "$(tier right)"
+tmux set-option -g status-right ""
 tmux set-option -g window-status-format "$(tier win)"
 tmux set-option -g window-status-current-format "$(tier cur)"
