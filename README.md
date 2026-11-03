@@ -31,6 +31,9 @@ set -g @axolotl-scheme 'terminal'   # default
 | `catppuccin` | Mocha, with a mauve accent |
 | `nord` | Muted frost blue |
 | `rose-pine` | Soft iris and rose tones |
+| `kanagawa` | Wave: indigo-black with a crystal-blue accent |
+| `kanagawa-dragon` | Dragon: darker and warmer, muted blue-grey accent |
+| `kanagawa-lotus` | Lotus: a light scheme, for light terminals |
 
 Named schemes adapt to the terminal, chosen per client: truecolor terminals get the exact hex colours, 256-colour terminals the nearest xterm colours, and basic terminals fall back to the ANSI palette. `terminal` uses the ANSI palette everywhere. For truecolor, make sure tmux knows about it, e.g. `set -as terminal-features ',xterm-256color:RGB'`.
 
