@@ -1,6 +1,6 @@
-# tmux-git-workspaces-theme
+# tmux-heron
 
-A minimal tmux status bar built around git workspaces. Companion to [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces).
+A tmux status bar with a UI feel: powerline pill, rounded tabs and chips, with colours that adapt to your terminal. Works best with [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces), which it uses to group windows by git repository.
 
 ```
  ws-a  master  (0 shell) 1 vim                         ws-b 1  ws-c 1  (no repo) 1
@@ -32,10 +32,10 @@ For truecolor, make sure tmux knows about it, e.g. `set -as terminal-features ',
 
 ## Install
 
-With [TPM](https://github.com/tmux-plugins/tpm), list the theme **before** the plugin and remove other status bar themes:
+With [TPM](https://github.com/tmux-plugins/tpm), list the theme **before** the plugin and remove other status bar themes (such as tmux2k):
 
 ```tmux
-set -g @plugin 'junousia/tmux-git-workspaces-theme'
+set -g @plugin 'junousia/tmux-heron'
 set -g @plugin 'junousia/tmux-git-workspaces'
 ```
 
@@ -44,10 +44,10 @@ set -g @plugin 'junousia/tmux-git-workspaces'
 Any tmux colour works: ANSI names (`yellow`, `brightblack`), `colourN`, or `#rrggbb`. An option overrides that colour in every palette tier.
 
 ```tmux
-set -g @wstheme-accent 'yellow'       # pill, active tab index, bell dot
-set -g @wstheme-fg 'white'            # text on tabs and chips
-set -g @wstheme-muted 'brightblack'   # inactive windows
-set -g @wstheme-dark 'black'          # text on the accent pill
+set -g @heron-accent 'yellow'       # pill, active tab index, bell dot
+set -g @heron-fg 'white'            # text on tabs and chips
+set -g @heron-muted 'brightblack'   # inactive windows
+set -g @heron-dark 'black'          # text on the accent pill
 ```
 
 ## License
