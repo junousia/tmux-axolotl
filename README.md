@@ -17,17 +17,24 @@ To put the pill on the left edge instead (branch stays on the right):
 set -g @axolotl-pill 'left'
 ```
 
-## Colours
+## Colour schemes
 
-The bar picks a palette per client, based on what the terminal supports:
+```tmux
+set -g @axolotl-scheme 'terminal'   # default
+```
 
-| Terminal | Palette |
+| Scheme | |
 | --- | --- |
-| Truecolor (`RGB` feature) | Refined RGB palette with soft surface tones |
-| 256 colours | Tuned `colourN` values |
-| Basic | The terminal's ANSI palette, so the bar follows your terminal theme |
+| `terminal` | The terminal's own ANSI colours, so the bar follows your terminal theme |
+| `gruvbox` | Warm amber on dark browns |
+| `tokyonight` | Cool blue |
+| `catppuccin` | Mocha, with a mauve accent |
+| `nord` | Muted frost blue |
+| `rose-pine` | Soft iris and rose tones |
 
-For truecolor, make sure tmux knows about it, e.g. `set -as terminal-features ',xterm-256color:RGB'`.
+Named schemes adapt to the terminal, chosen per client: truecolor terminals get the exact hex colours, 256-colour terminals the nearest xterm colours, and basic terminals fall back to the ANSI palette. `terminal` uses the ANSI palette everywhere. For truecolor, make sure tmux knows about it, e.g. `set -as terminal-features ',xterm-256color:RGB'`.
+
+Add your own by dropping a file in `schemes/` that sets `accent`, `fg`, `muted`, `dark`, `surface` and `active` as `#rrggbb` values (see `schemes/gruvbox`).
 
 ## Requirements
 
@@ -46,14 +53,21 @@ set -g @plugin 'junousia/tmux-git-workspaces'
 
 ## Options
 
-Any tmux colour works: ANSI names (`yellow`, `brightblack`), `colourN`, or `#rrggbb`. An option overrides that colour in every palette tier.
+Any tmux colour works: ANSI names (`yellow`, `brightblack`), `colourN`, or `#rrggbb`. A colour option overrides that colour of the scheme in every tier.
 
 ```tmux
+set -g @axolotl-pill 'right'          # or 'left'; the branch stays on the right
 set -g @axolotl-accent 'yellow'       # pill, active tab index, bell glyph
 set -g @axolotl-fg 'white'            # text on the branch segment and active tab
 set -g @axolotl-muted 'brightblack'   # inactive windows
 set -g @axolotl-dark 'black'          # text on the accent pill
+set -g @axolotl-surface 'brightblack' # branch segment background
+set -g @axolotl-active 'brightblack'  # active tab background
 ```
+
+## Sharing the palette
+
+The resolved palette is published as tmux options, `@axolotl-pal-<tier>-<name>` (tier `rgb`, `256` or `ansi`; names `accent`, `fg`, `muted`, `dark`, `surface`, `active`), so other plugins can match the bar. [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces) uses them for its picker and toasts.
 
 ## License
 

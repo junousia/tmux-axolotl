@@ -6,11 +6,13 @@
 # Layout: tabs on the left; branch segment and workspace pill on the right.
 # @axolotl-pill 'left' moves the pill to the left edge instead.
 #
-# Colours are tiered and chosen per client at render time:
-#   truecolor (RGB)  refined palette with soft surface tones
-#   256 colours      tuned colourN values
-#   basic            the terminal's ANSI palette, so the bar follows its theme
-# An @axolotl-* option overrides that colour in every tier.
+# Colours: @axolotl-scheme picks a palette (default 'terminal': the terminal's
+# own ANSI colours, so the bar follows your terminal theme). Named schemes in
+# schemes/ use exact hex colours on truecolor terminals, the nearest xterm
+# colours on 256-colour ones, and the ANSI palette on basic ones. Tier is chosen
+# per client at render time. An @axolotl-<colour> option overrides that colour
+# in every tier. The resolved palette is published as @axolotl-pal-<tier>-<name>
+# for other plugins to inherit.
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 opt() { local v; v=$(tmux show-option -gqv "$1"); echo "${v:-$2}"; }
@@ -24,10 +26,52 @@ bell=$'\xef\x83\xb3'; zoom=$'\xef\x80\x8e'
 ws='#{?#{@workspace-active},#{b:@workspace-active},#S}'
 git="#(git -C '#{@workspace-active}' branch --show-current 2>/dev/null)"
 pill_pos=$(opt @axolotl-pill right)
+scheme=$(opt @axolotl-scheme terminal)
 
-# build <tier> <accent> <text> <muted> <dark> <surface> <active-surface>
+# nearest xterm-256 colour for #rrggbb (6x6x6 cube or grayscale ramp)
+levels=(0 95 135 175 215 255)
+nearest() { local v=$1 i best=0 bd=999 d; for i in 0 1 2 3 4 5; do d=$(( v - levels[i] )); (( d < 0 )) && d=$(( -d )); (( d < bd )) && { bd=$d; best=$i; }; done; echo "$best"; }
+to256() {
+  local h=${1#\#} r g b ri gi bi cr cg cb gray gv dc dg
+  r=$((16#${h:0:2})); g=$((16#${h:2:2})); b=$((16#${h:4:2}))
+  ri=$(nearest $r); gi=$(nearest $g); bi=$(nearest $b)
+  cr=${levels[ri]}; cg=${levels[gi]}; cb=${levels[bi]}
+  gray=$(( (r + g + b) / 3 )); gray=$(( (gray - 3) / 10 )); (( gray < 0 )) && gray=0; (( gray > 23 )) && gray=23
+  gv=$(( 8 + 10 * gray ))
+  dc=$(( (r-cr)*(r-cr) + (g-cg)*(g-cg) + (b-cb)*(b-cb) ))
+  dg=$(( (r-gv)*(r-gv) + (g-gv)*(g-gv) + (b-gv)*(b-gv) ))
+  if (( dg < dc )); then echo "colour$(( 232 + gray ))"; else echo "colour$(( 16 + 36*ri + 6*gi + bi ))"; fi
+}
+
+# resolve the palette per tier: tier_<tier>[accent|fg|muted|dark|surface|active]
+names=(accent fg muted dark surface active)
+ansi_default=(yellow white brightblack black brightblack brightblack)
+declare -A pal
+for i in "${!names[@]}"; do
+  n=${names[$i]}
+  pal[ansi-$n]=${ansi_default[$i]}; pal[256-$n]=${ansi_default[$i]}; pal[rgb-$n]=${ansi_default[$i]}
+done
+if [[ $scheme != terminal && -f $dir/schemes/$scheme ]]; then
+  # shellcheck disable=SC1090
+  source "$dir/schemes/$scheme"
+  for n in "${names[@]}"; do
+    hex=${!n}
+    pal[rgb-$n]=$hex; pal[256-$n]=$(to256 "$hex")
+  done
+fi
+# per-colour user overrides apply to every tier and are published below
+for t in rgb 256 ansi; do
+  for n in "${names[@]}"; do
+    o=$(tmux show-option -gqv "@axolotl-$n"); [[ -n $o ]] && pal[$t-$n]=$o
+    tmux set-option -g "@axolotl-pal-$t-$n" "${pal[$t-$n]}"
+  done
+done
+
+# build <tier>
 build() {
-  local t=$1 accent=$2 text=$3 muted=$4 dark=$5 surf=$6 act=$7
+  local t=$1
+  local accent=${pal[$t-accent]} text=${pal[$t-fg]} muted=${pal[$t-muted]}
+  local dark=${pal[$t-dark]} surf=${pal[$t-surface]} act=${pal[$t-active]}
   local body="#[fg=$dark]#[bg=$accent]#[bold]$folder $ws #[nobold]"
 
   if [[ $pill_pos == left ]]; then
@@ -49,16 +93,7 @@ build() {
   tmux set-option -g "@axolotl-cur-$t" \
     "#[fg=$act]#[bg=default]$lcap#[fg=$accent]#[bg=$act]#[bold]#I #[fg=$text]#W#[nobold]#{?window_zoomed_flag,#[fg=$accent] $zoom,}#[fg=$act]#[bg=default]$rcap"
 }
-
-build rgb \
-  "$(opt @axolotl-accent '#d79921')" "$(opt @axolotl-fg '#d5c4a1')" \
-  "$(opt @axolotl-muted '#7c6f64')" "$(opt @axolotl-dark '#1d2021')" "#3c3836" "#504945"
-build 256 \
-  "$(opt @axolotl-accent colour172)" "$(opt @axolotl-fg colour187)" \
-  "$(opt @axolotl-muted colour243)" "$(opt @axolotl-dark colour234)" colour237 colour239
-build ansi \
-  "$(opt @axolotl-accent yellow)" "$(opt @axolotl-fg white)" \
-  "$(opt @axolotl-muted brightblack)" "$(opt @axolotl-dark black)" brightblack brightblack
+build rgb; build 256; build ansi
 
 # pick the tier per client; #{E:...} keeps the styles' commas out of #{?...}
 rgb='#{m:*RGB*,#{client_termfeatures}}'
