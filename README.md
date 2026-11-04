@@ -37,6 +37,8 @@ set -g @axolotl-scheme 'terminal'   # default
 
 Named schemes adapt to the terminal, chosen per client: truecolor terminals get the exact hex colours, 256-colour terminals the nearest xterm colours, and basic terminals fall back to the ANSI palette. `terminal` uses the ANSI palette everywhere. For truecolor, make sure tmux knows about it, e.g. `set -as terminal-features ',xterm-256color:RGB'`.
 
+**Switching live:** `prefix + T` opens a picker with colour swatches. The bar previews each scheme as you move through the list; Enter keeps it, Esc restores the previous one. The switch lasts until tmux restarts: put `set -g @axolotl-scheme '<name>'` in `tmux.conf` to keep it. Needs `fzf`. Change the key with `set -g @axolotl-scheme-key 'X'`, or `off` to disable the binding.
+
 Add your own by dropping a file in `schemes/` that sets `accent`, `fg`, `muted`, `dark`, `surface` and `active` as `#rrggbb` values (see `schemes/gruvbox`).
 
 ## Requirements
@@ -61,6 +63,11 @@ Any tmux colour works: ANSI names (`yellow`, `brightblack`), `colourN`, or `#rrg
 ```tmux
 set -g @axolotl-pill 'right'          # or 'left'; the branch stays on the right
 set -g @axolotl-numbers 'on'          # 'off' hides window numbers (the active tab's name takes the accent)
+set -g @axolotl-gradient 'fade'       # inactive tab shading: fade | alternate | flat (default: fade; flat for the 'terminal' scheme)
+set -g @axolotl-gradient-steps '4'    # number of shades a fade uses (2-8)
+set -g @axolotl-abbrev '4'            # inactive tab names are cut to this many characters
+set -g @axolotl-host 'on'             # 'off' hides the hostname pill
+set -g @axolotl-justify 'centre'      # 'left' left-aligns the tabs
 set -g @axolotl-accent 'yellow'       # pill, active tab index, bell glyph
 set -g @axolotl-fg 'white'            # text on the branch segment and active tab
 set -g @axolotl-muted 'brightblack'   # inactive windows
