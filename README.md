@@ -23,10 +23,10 @@ The left and right panels are lists of pills (segments):
 
 ```tmux
 set -g @axolotl-left  'host'                    # default
-set -g @axolotl-right 'toast branch workspace'        # default
+set -g @axolotl-right 'branch workspace'        # default
 ```
 
-Built-in segments: `host`, `branch` (hidden outside git repos), `workspace` and `toast` (the workspace plugin's self-clearing toast, hidden while empty). Each pill has a long and a short form and **expands as the terminal gets wider**: the long form needs a client width of at least `@axolotl-segment-<name>-min` columns (host 110, branch 90, workspace 70, your own 100), below that the short form is shown (just the icon unless you set `-short`). The least important segment collapses first.
+Built-in segments: `host`, `branch` (hidden outside git repos), and `workspace`. Each pill has a long and a short form and **expands as the terminal gets wider**: the long form needs a client width of at least `@axolotl-segment-<name>-min` columns (host 110, branch 90, workspace 70, your own 100), below that the short form is shown (just the icon unless you set `-short`). The least important segment collapses first.
 
 **Add your own**, from `tmux.conf` or from another plugin:
 
@@ -103,7 +103,7 @@ set -g @axolotl-active 'brightblack'  # active tab background
 
 ## Sharing the palette
 
-The resolved palette is published as tmux options, `@axolotl-pal-<tier>-<name>` (tier `rgb`, `256` or `ansi`; names `accent`, `fg`, `muted`, `dark`, `surface`, `active`), so other plugins can match the bar. [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces) uses them for its picker and toasts.
+The resolved palette is published as tmux options, `@axolotl-pal-<tier>-<name>` (tier `rgb`, `256` or `ansi`; names `accent`, `fg`, `muted`, `dark`, `surface`, `active`), so other plugins can match the bar. [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces) uses them for its picker.
 
 ## License
 

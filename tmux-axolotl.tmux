@@ -37,7 +37,7 @@ for i in "${!names_opt[@]}"; do uopt[${names_opt[$i]}]=${vals[$i]-}; done
 opt() { local v=${uopt[${1#@axolotl-}]}; echo "${v:-$2}"; }
 
 # Side-panel segments. @axolotl-left / @axolotl-right list them; each is a pill.
-# Built-ins: host, branch, workspace, toast. Define your own (any plugin can):
+# Built-ins: host, branch, workspace. Define your own (any plugin can):
 #   set -g @axolotl-segment-<name> '<tmux format, may use #(command)>'
 #   optional: -icon, -short (short form, default icon only), -style (surface|accent),
 #             -if (format; shown when true), -min (client width needed for the long form)
@@ -116,7 +116,7 @@ hexre='^#[0-9a-fA-F]{6}$'
 
 # segment lists and per-segment settings (second tmux call, one per run)
 left_def=; [[ $host_on != off ]] && left_def=host
-right_def="toast branch workspace"
+right_def="branch workspace"
 [[ $pill_pos == left ]] && { left_def="$left_def workspace"; right_def=branch; }
 read -r -a left_segs <<<"$(opt @axolotl-left "$left_def")"
 read -r -a right_segs <<<"$(opt @axolotl-right "$right_def")"
@@ -134,8 +134,6 @@ for n in "${segs[@]}"; do
     host)      c='#h'; i=$hosticon; m=110 ;;
     branch)    c=$git; i=$branch_icon; f='#{!=:#{@workspace-active},(no repo)}'; m=90 ;;
     workspace) c=$ws; i=$folder; st=accent; m=70 ;;
-    # tmux-git-workspaces' toast: shown while it has text, then clears itself
-    toast)     c='#{@workspaces-toast-text}'; i=$'\xe2\x96\xb8'; f='#{!=:#{@workspaces-toast-text},}'; m=0 ;;
   esac
   [[ -n $u_content ]] && c="#{E:@axolotl-segment-$n}"
   SEG_CONTENT[$n]=$c; SEG_ICON[$n]=${u_icon:-$i}; SEG_SHORT[$n]=$u_short
