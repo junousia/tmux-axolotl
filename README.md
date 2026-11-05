@@ -17,6 +17,31 @@ To put the pill on the left edge instead (branch stays on the right):
 set -g @axolotl-pill 'left'
 ```
 
+## Side panels and segments
+
+The left and right panels are lists of pills (segments):
+
+```tmux
+set -g @axolotl-left  'host'                    # default
+set -g @axolotl-right 'branch workspace'        # default
+```
+
+Built-in segments: `host`, `branch` (hidden outside git repos) and `workspace`. Each pill has a long and a short form and **expands as the terminal gets wider**: the long form needs a client width of at least `@axolotl-segment-<name>-min` columns (host 110, branch 90, workspace 70, your own 100), below that the short form is shown (just the icon unless you set `-short`). The least important segment collapses first.
+
+**Add your own**, from `tmux.conf` or from another plugin:
+
+```tmux
+set -g @axolotl-segment-load        '#(cut -d" " -f1 /proc/loadavg)'   # any tmux format, #() included
+set -g @axolotl-segment-load-icon   ''                                # optional
+set -g @axolotl-segment-load-short  ''                                # optional short form (default: icon only)
+set -g @axolotl-segment-load-style  'surface'                          # or 'accent'
+set -g @axolotl-segment-load-if     '#{==:#{pane_current_command},ssh}'  # optional condition
+set -g @axolotl-segment-load-min    '100'                              # width needed for the long form
+set -g @axolotl-right 'load branch workspace'
+```
+
+Segments take the theme's colours (scheme, tier, overrides) automatically. Colours in a segment's own format are yours to choose. Conditions must not contain bare commas outside `#{...}`. A plugin that registers a segment must load *before* tmux-axolotl (TPM loads in `@plugin` order), or re-run `~/.tmux/plugins/tmux-axolotl/tmux-axolotl.tmux` afterwards.
+
 ## Colour schemes
 
 ```tmux
@@ -61,7 +86,7 @@ set -g @plugin 'junousia/tmux-git-workspaces'
 Any tmux colour works: ANSI names (`yellow`, `brightblack`), `colourN`, or `#rrggbb`. A colour option overrides that colour of the scheme in every tier.
 
 ```tmux
-set -g @axolotl-pill 'right'          # or 'left'; the branch stays on the right
+set -g @axolotl-pill 'right'          # or 'left': moves the workspace segment to the left panel (see segments)
 set -g @axolotl-numbers 'on'          # 'off' hides window numbers (the active tab's name takes the accent)
 set -g @axolotl-gradient 'fade'       # inactive tab shading: fade | alternate | flat (default: fade; flat for the 'terminal' scheme)
 set -g @axolotl-gradient-steps '4'    # number of shades a fade uses (2-8)

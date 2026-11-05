@@ -28,13 +28,20 @@
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # read every option we use in a single tmux call (each tmux call is a process)
-names_opt=(pill scheme numbers host justify abbrev scheme-key gradient gradient-steps accent fg muted dark surface active)
+names_opt=(pill scheme numbers host justify abbrev scheme-key gradient gradient-steps left right accent fg muted dark surface active)
 US=$'\x1f'
 fmt=; for n in "${names_opt[@]}"; do fmt+="#{@axolotl-$n}$US"; done
 IFS=$US read -r -a vals < <(tmux display -p "$fmt")
 declare -A uopt
 for i in "${!names_opt[@]}"; do uopt[${names_opt[$i]}]=${vals[$i]-}; done
 opt() { local v=${uopt[${1#@axolotl-}]}; echo "${v:-$2}"; }
+
+# Side-panel segments. @axolotl-left / @axolotl-right list them; each is a pill.
+# Built-ins: host, branch, workspace. Define your own (any plugin can):
+#   set -g @axolotl-segment-<name> '<tmux format, may use #(command)>'
+#   optional: -icon, -short (short form, default icon only), -style (surface|accent),
+#             -if (format; shown when true), -min (client width needed for the long form)
+# Load segment-defining plugins before this one, or re-run this script afterwards.
 
 # tmux commands are batched and sent in one call at the end
 cmds=()
@@ -107,6 +114,44 @@ blend() {
 }
 hexre='^#[0-9a-fA-F]{6}$'
 
+# segment lists and per-segment settings (second tmux call, one per run)
+left_def=; [[ $host_on != off ]] && left_def=host
+right_def="branch workspace"
+[[ $pill_pos == left ]] && { left_def="$left_def workspace"; right_def=branch; }
+read -r -a left_segs <<<"$(opt @axolotl-left "$left_def")"
+read -r -a right_segs <<<"$(opt @axolotl-right "$right_def")"
+segs=("${left_segs[@]}" "${right_segs[@]}")
+fmt=; for n in "${segs[@]}"; do for k in "" -icon -short -style -if -min; do fmt+="#{@axolotl-segment-$n$k}$US"; done; done
+IFS=$US read -r -a svals < <(tmux display -p "$fmt")
+declare -A SEG_CONTENT SEG_ICON SEG_SHORT SEG_STYLE SEG_IF SEG_MIN
+si=0
+for n in "${segs[@]}"; do
+  u_content=${svals[si++]-}; u_icon=${svals[si++]-}; u_short=${svals[si++]-}
+  u_style=${svals[si++]-}; u_if=${svals[si++]-}; u_min=${svals[si++]-}
+  # built-in defaults, then the user's own values on top
+  c=; i=; st=surface; f=; m=100
+  case $n in
+    host)      c='#h'; i=$hosticon; m=110 ;;
+    branch)    c=$git; i=$branch_icon; f='#{!=:#{@workspace-active},(no repo)}'; m=90 ;;
+    workspace) c=$ws; i=$folder; st=accent; m=70 ;;
+  esac
+  [[ -n $u_content ]] && c="#{E:@axolotl-segment-$n}"
+  SEG_CONTENT[$n]=$c; SEG_ICON[$n]=${u_icon:-$i}; SEG_SHORT[$n]=$u_short
+  SEG_STYLE[$n]=${u_style:-$st}; SEG_IF[$n]=${u_if:-$f}; SEG_MIN[$n]=${u_min:-$m}
+done
+
+# panel <tier> <segments...>: the segments' pills in order; long form when the
+# client is wide enough, short form otherwise, nothing if its condition fails
+panel() {
+  local t=$1 out="" n ref; shift
+  for n in "$@"; do
+    ref="#{?#{e|>=:#{client_width},${SEG_MIN[$n]}},#{E:@axolotl-seg-$n-$t-long},#{E:@axolotl-seg-$n-$t-short}}"
+    [[ -n ${SEG_IF[$n]} ]] && ref="#{?${SEG_IF[$n]},$ref,}"
+    out+=$ref
+  done
+  echo "$out"
+}
+
 # build <tier>
 build() {
   local t=$1
@@ -154,28 +199,25 @@ build() {
   # neighbours: none at the ends of the run
   lbg="#{?#{||:#{==:#{@workspace-pos},first},#{==:#{@workspace-pos},only}},#[bg=default],$(shade bg "#{e|-:$slot,1}")}"
   rbg="#{?#{||:#{==:#{@workspace-pos},last},#{==:#{@workspace-pos},only}},#[bg=default],$(shade bg "#{e|+:$slot,1}")}"
-  local body="#[fg=$dark]#[bg=$accent]#[bold]$folder $ws #[nobold]"
   # window numbers: the active tab's accent moves to its name when they're hidden
   local cnum=""; [[ $numbers == off ]] || cnum="#I "
   local num="#I "
   [[ $numbers == off ]] && num=""
 
-  local host=""
-  [[ $host_on != off ]] && host="#[fg=$surf]#[bg=default]$lcap#[fg=$text]#[bg=$surf]$hosticon #h #[fg=$surf]#[bg=default]$rcap "
-
-  if [[ $pill_pos == left ]]; then
-    q set-option -g "@axolotl-left-$t" \
-      "${host}#[fg=$accent]#[bg=default]$lcap$body#[fg=$accent]#[bg=default]$rcap "
-    q set-option -g "@axolotl-right-git-$t" \
-      "#[fg=$surf]#[bg=default]$lcap#[fg=$text]#[bg=$surf]$branch_icon $git #[fg=$surf]#[bg=default]$rcap "
-    q set-option -g "@axolotl-right-nogit-$t" ""
-  else
-    q set-option -g "@axolotl-left-$t" "$host"
-    q set-option -g "@axolotl-right-git-$t" \
-      "#[fg=$surf]#[bg=default]$lcap#[fg=$text]#[bg=$surf]$branch_icon $git #[fg=$surf]#[bg=default]$rcap #[fg=$accent]#[bg=default]$lcap$body#[fg=$accent]#[bg=default]$rcap "
-    q set-option -g "@axolotl-right-nogit-$t" \
-      "#[fg=$accent]#[bg=default]$lcap$body#[fg=$accent]#[bg=default]$rcap "
-  fi
+  # segments -> one pill each, in a long and a short form, picked by client width
+  local n bgc txt bold inner
+  for n in "${segs[@]}"; do
+    if [[ ${SEG_STYLE[$n]} == accent ]]; then bgc=$accent txt=$dark bold="#[bold]"; else bgc=$surf txt=$text bold=""; fi
+    local open="#[fg=$bgc]#[bg=default]$lcap#[fg=$txt]#[bg=$bgc]$bold" close="#[nobold]#[fg=$bgc]#[bg=default]$rcap "
+    local icon=${SEG_ICON[$n]}
+    q set-option -g "@axolotl-seg-$n-$t-long" "${open}${icon:+$icon }${SEG_CONTENT[$n]} ${close}"
+    inner=${SEG_SHORT[$n]}
+    if [[ -n $inner ]]; then inner="${icon:+$icon }$inner "; elif [[ -n $icon ]]; then inner="$icon "; fi
+    if [[ -n $inner ]]; then q set-option -g "@axolotl-seg-$n-$t-short" "${open}${inner}${close}"
+    else q set-option -g "@axolotl-seg-$n-$t-short" ""; fi
+  done
+  q set-option -g "@axolotl-left-$t" "$(panel "$t" "${left_segs[@]}")"
+  q set-option -g "@axolotl-right-$t" "$(panel "$t" "${right_segs[@]}")"
 
   # one connected bar: inactive tabs show their window name abbreviated, on shades that
   # have a fixed gradient by position; the selected tab is an accent segment with the
@@ -194,17 +236,16 @@ build rgb; build 256; build ansi
 rgb='#{m:*RGB*,#{client_termfeatures}}'
 c256='#{||:#{m:*256*,#{client_termfeatures}},#{m:*256*,#{client_termname}}}'
 tier() { echo "#{?$rgb,#{E:@axolotl-$1-rgb},#{?$c256,#{E:@axolotl-$1-256},#{E:@axolotl-$1-ansi}}}"; }
-nogit='#{==:#{@workspace-active},(no repo)}'
 
 q set-option -g status-style "bg=default,fg=default"
-q set-option -g status-left-length 80
-q set-option -g status-right-length 80
+q set-option -g status-left-length 120
+q set-option -g status-right-length 120
 q set-option -g status-justify "$justify"
 q set-option -g window-status-style none
 q set-option -g window-status-current-style none
 q set-option -g window-status-separator ''
 q set-option -g status-left "$(tier left)"
-q set-option -g status-right "#{?$nogit,$(tier right-nogit),$(tier right-git)}"
+q set-option -g status-right "$(tier right)"
 q set-option -g window-status-format "$(tier win)"
 q set-option -g window-status-current-format "$(tier cur)"
 tmux "${cmds[@]}"
