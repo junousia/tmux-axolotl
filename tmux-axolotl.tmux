@@ -66,8 +66,9 @@ lcap=$'\xee\x82\xb6'; rcap=$'\xee\x82\xb4'
 branch_icon=$'\xee\x82\xa0'; folder=$'\xef\x81\xbb'
 bell=$'\xef\x83\xb3'; zoom=$'\xef\x80\x8e'; hosticon=$'\xef\x84\x88'
 
-ws='#{?#{@workspace-active},#{b:@workspace-active},#S}'
-git="#(git -C '#{@workspace-active}' branch --show-current 2>/dev/null)"
+active_root='#{W:,#{@workspace}}'
+ws="#{?$active_root,#{b:$active_root},#S}"
+git="#(git -C '$active_root' branch --show-current 2>/dev/null)"
 pill_pos=$(opt @axolotl-pill right)
 scheme=$(opt @axolotl-scheme terminal)
 numbers=$(opt @axolotl-numbers on)
@@ -147,7 +148,7 @@ for n in "${segs[@]}"; do
   c=; i=; st=surface; f=; m=100
   case $n in
     host)      c='#h'; i=$hosticon; m=110 ;;
-    branch)    c=$git; i=$branch_icon; f='#{!=:#{@workspace-active},(no repo)}'; m=90 ;;
+    branch)    c=$git; i=$branch_icon; f="#{!=:$active_root,(no repo)}"; m=90 ;;
     workspace) c=$ws; i=$folder; st=accent; m=70 ;;
   esac
   [[ -n $u_content ]] && c="#{E:@axolotl-segment-$n}"

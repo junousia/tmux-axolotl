@@ -256,13 +256,25 @@ class StatusLayoutTest(unittest.TestCase):
         raw = self.tmux("display-message", "-p", "-c", client, "#{E:@axolotl-left-rgb}")
         self.assertEqual(STYLE.sub("", raw).rstrip("\n"), " " + literal + " ")
 
+    def test_workspace_pill_uses_current_window_without_hook(self):
+        client = self.attach_client()
+        self.tmux("refresh-client", "-t", client, "-C", "160,24")
+        roots = ("/tmp/alpha", "/tmp/beta", "(no repo)")
+        for window, root in zip(self.windows, roots):
+            self.tmux("set-option", "-w", "-t", window, "@workspace", root)
+        self.load_theme("off")
+        for window, expected in zip(self.windows, ("alpha", "beta", "(no repo)")):
+            self.tmux("select-window", "-t", window)
+            raw = self.tmux("display-message", "-p", "-c", client, "#{E:@axolotl-right-rgb}")
+            self.assertIn(expected, STYLE.sub("", raw))
+
     def test_builtin_branch_hides_without_breaking_workspace_pill(self):
         client = self.attach_client()
         self.tmux("refresh-client", "-t", client, "-C", "160,24")
         self.tmux("set-option", "-g", "@axolotl-segment-branch", "main")
         self.load_theme("off")
         for workspace, count in (("/tmp/project", 2), ("(no repo)", 1)):
-            self.tmux("set-option", "-g", "@workspace-active", workspace)
+            self.tmux("set-option", "-w", "-t", self.windows[2], "@workspace", workspace)
             raw = self.tmux("display-message", "-p", "-c", client, "#{E:@axolotl-right-rgb}")
             bar = STYLE.sub("", raw).strip()
             self.assertEqual(bar.count(""), count)
