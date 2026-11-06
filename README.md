@@ -1,15 +1,16 @@
 # tmux-axolotl
 
-A tmux status bar with a UI feel: powerline pill and rounded tabs, with colours that adapt to your terminal. Works best with [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces), which it uses to group windows by git repository.
+A compact tmux status bar with connected, rounded segments and colours that adapt to your terminal. Works best with [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces), which it uses to group windows by git repository.
 
 ```
- (0 shell) 1 vim                                           master  ws-a
+ ( host )             ( shell | vim | logs )             ( main | workspace )
 ```
 
 The bar is built from small widgets with Nerd Font glyphs:
 
-- **Left, tabs:** only the current workspace's windows. The active one is a rounded tab with an accent index; others are muted. Bell and zoom each get a glyph.
-- **Right, branch and workspace pill:** the git branch in a soft segment, then the workspace name in an accent pill (the branch segment is omitted outside a git repo).
+- **Left:** hostname, or your own segment list.
+- **Centre:** the current workspace's windows in one connected bar. Selection changes the colours while title positions stay fixed. Bell and zoom state have their own glyphs.
+- **Right:** branch and workspace joined into one pill group; the branch disappears outside a git repo.
 
 To put the pill on the left edge instead (branch stays on the right):
 
@@ -19,14 +20,14 @@ set -g @axolotl-pill 'left'
 
 ## Side panels and segments
 
-The left and right panels are lists of pills (segments):
+Each side panel is one connected group of segments, with rounded outer ends and shared internal boundaries. The joins curve toward the centre of the status bar: right on the left panel, left on the right panel:
 
 ```tmux
 set -g @axolotl-left  'host'                    # default
 set -g @axolotl-right 'branch workspace'        # default
 ```
 
-Built-in segments: `host`, `branch` (hidden outside git repos), and `workspace`. Each pill has a long and a short form and **expands as the terminal gets wider**: the long form needs a client width of at least `@axolotl-segment-<name>-min` columns (host 110, branch 90, workspace 70, your own 100), below that the short form is shown (just the icon unless you set `-short`). The least important segment collapses first.
+Built-in segments: `host`, `branch` (hidden outside git repos), and `workspace`. Each segment has a long and a short form and **expands as the terminal gets wider**: the long form needs a client width of at least `@axolotl-segment-<name>-min` columns (host 110, branch 90, workspace 70, your own 100), below that the short form is shown (just the icon unless you set `-short`). The width thresholds determine which segments collapse first. Iconless segments with no short form disappear. Hidden segments leave no gaps or orphaned caps; their visible neighbours join directly.
 
 **Add your own**, from `tmux.conf` or from another plugin:
 
@@ -41,6 +42,30 @@ set -g @axolotl-right 'load branch workspace'
 ```
 
 Segments take the theme's colours (scheme, tier, overrides) automatically. Colours in a segment's own format are yours to choose. Conditions must not contain bare commas outside `#{...}`. A plugin that registers a segment must load *before* tmux-axolotl (TPM loads in `@plugin` order), or re-run `~/.tmux/plugins/tmux-axolotl/tmux-axolotl.tmux` afterwards.
+
+## Stable window tabs
+
+Tabs share the same padding and boundary geometry as the side panels. Each tab
+owns one boundary cell to its right, including the curve leading into the active
+tab. Selection and workspace metadata updates therefore cannot insert or remove
+separator cells. The active curve is chosen from tmux's live selection during
+the same redraw as the highlight; it does not wait for workspace shell hooks.
+
+By default, active and inactive titles use the same `@axolotl-abbrev` limit (4).
+Increase it for more readable titles while keeping selection steady:
+
+```tmux
+set -g @axolotl-abbrev '12'
+```
+
+To restore the previous behaviour of expanding the selected title in full:
+
+```tmux
+set -g @axolotl-title-mode 'expand'  # default: stable
+```
+
+Expansion intentionally changes the bar's width when selection moves. Renaming a
+window or changing its bell/zoom state can also change its content and width.
 
 ## Colour schemes
 
@@ -90,7 +115,8 @@ set -g @axolotl-pill 'right'          # or 'left': moves the workspace segment t
 set -g @axolotl-numbers 'on'          # 'off' hides window numbers (the active tab's name takes the accent)
 set -g @axolotl-gradient 'fade'       # inactive tab shading: fade | alternate | flat (default: fade; flat for the 'terminal' scheme)
 set -g @axolotl-gradient-steps '4'    # number of shades a fade uses (2-8)
-set -g @axolotl-abbrev '4'            # inactive tab names are cut to this many characters
+set -g @axolotl-abbrev '4'            # title limit for both selection states
+set -g @axolotl-title-mode 'stable'   # 'expand' shows the selected title in full
 set -g @axolotl-host 'on'             # 'off' hides the hostname pill
 set -g @axolotl-justify 'centre'      # 'left' left-aligns the tabs
 set -g @axolotl-accent 'yellow'       # pill, active tab index, bell glyph
@@ -104,6 +130,21 @@ set -g @axolotl-active 'brightblack'  # active tab background
 ## Sharing the palette
 
 The resolved palette is published as tmux options, `@axolotl-pal-<tier>-<name>` (tier `rgb`, `256` or `ansi`; names `accent`, `fg`, `muted`, `dark`, `surface`, `active`), so other plugins can match the bar. [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces) uses them for its picker.
+
+## Development checks
+
+Run `python3 -B -m unittest discover -s tests -v` with tmux and Bash on `PATH`.
+The checks use private tmux servers and control clients; existing sessions are
+not touched. They cover title columns and selection curves before and after workspace updates, filtered
+window gaps, all
+three colour tiers and gradients, window numbers, zoom state, single tabs,
+optional title expansion, panel visibility and width thresholds, seam colours,
+and literal custom segment values.
+
+`scripts/render.sh` contains the shared body/cap geometry and panel composition.
+The main script resolves options and palettes, then streams one quoted
+configuration to tmux. Layouts are evaluated per client without polling or shell
+commands for their boundaries.
 
 ## License
 

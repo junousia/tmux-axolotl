@@ -7,8 +7,9 @@
 # pill on the right.
 # @axolotl-pill 'left' moves the workspace pill to the left edge instead.
 # Tabs form one connected bar: inactive tabs show their window name shortened to
-# @axolotl-abbrev chars (4), on backgrounds that darken left to right; the selected tab shows the full
-# window name. Rename windows with automatic-rename-format or rename-window.
+# @axolotl-abbrev chars (4), on backgrounds that darken left to right. Selection
+# changes colours, not geometry; @axolotl-title-mode expand restores full active
+# titles. Rename windows with automatic-rename-format or rename-window.
 # @axolotl-gradient fade|alternate|flat sets how inactive tabs are shaded (default:
 # fade, flat for the 'terminal' scheme); @axolotl-gradient-steps (2-8, default 4)
 # sets how many shades a fade uses.
@@ -28,7 +29,7 @@
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # read every option we use in a single tmux call (each tmux call is a process)
-names_opt=(pill scheme numbers host justify abbrev scheme-key gradient gradient-steps left right accent fg muted dark surface active)
+names_opt=(pill scheme numbers host justify abbrev title-mode scheme-key gradient gradient-steps left right accent fg muted dark surface active)
 US=$'\x1f'
 fmt=; for n in "${names_opt[@]}"; do fmt+="#{@axolotl-$n}$US"; done
 IFS=$US read -r -a vals < <(tmux display -p "$fmt")
@@ -36,16 +37,29 @@ declare -A uopt
 for i in "${!names_opt[@]}"; do uopt[${names_opt[$i]}]=${vals[$i]-}; done
 opt() { local v=${uopt[${1#@axolotl-}]}; echo "${v:-$2}"; }
 
-# Side-panel segments. @axolotl-left / @axolotl-right list them; each is a pill.
+# Side-panel segments. Each side is one connected group of visible segments.
 # Built-ins: host, branch, workspace. Define your own (any plugin can):
 #   set -g @axolotl-segment-<name> '<tmux format, may use #(command)>'
 #   optional: -icon, -short (short form, default icon only), -style (surface|accent),
 #             -if (format; shown when true), -min (client width needed for the long form)
 # Load segment-defining plugins before this one, or re-run this script afterwards.
 
-# tmux commands are batched and sent in one call at the end
+# Stream a quoted configuration in one call instead of sending an argv batch:
+# custom panels can exceed tmux's command-message size limit.
 cmds=()
-q() { cmds+=("$@" ';'); }
+q() {
+  local arg line=''
+  for arg in "$@"; do
+    arg=${arg//\\/\\\\}
+    arg=${arg//\"/\\\"}
+    arg=${arg//\$/\\\$}
+    arg=${arg//$'\n'/\\n}
+    arg=${arg//$'\r'/\\r}
+    arg=${arg//$'\t'/\\t}
+    line+="\"$arg\" "
+  done
+  cmds+=("$line")
+}
 
 # glyphs as UTF-8 bytes (independent of the locale this script runs in)
 lcap=$'\xee\x82\xb6'; rcap=$'\xee\x82\xb4'
@@ -60,6 +74,7 @@ numbers=$(opt @axolotl-numbers on)
 host_on=$(opt @axolotl-host on)
 justify=$(opt @axolotl-justify centre)
 abbr=$(opt @axolotl-abbrev 4)
+title_mode=$(opt @axolotl-title-mode stable)
 gradient=$(opt @axolotl-gradient '')
 gsteps=$(opt @axolotl-gradient-steps 4)
 (( gsteps < 2 )) && gsteps=2; (( gsteps > 8 )) && gsteps=8
@@ -140,17 +155,10 @@ for n in "${segs[@]}"; do
   SEG_STYLE[$n]=${u_style:-$st}; SEG_IF[$n]=${u_if:-$f}; SEG_MIN[$n]=${u_min:-$m}
 done
 
-# panel <tier> <segments...>: the segments' pills in order; long form when the
-# client is wide enough, short form otherwise, nothing if its condition fails
-panel() {
-  local t=$1 out="" n ref; shift
-  for n in "$@"; do
-    ref="#{?#{e|>=:#{client_width},${SEG_MIN[$n]}},#{E:@axolotl-seg-$n-$t-long},#{E:@axolotl-seg-$n-$t-short}}"
-    [[ -n ${SEG_IF[$n]} ]] && ref="#{?${SEG_IF[$n]},$ref,}"
-    out+=$ref
-  done
-  echo "$out"
-}
+# Shared geometry for tabs and panels; colour and visibility are separate from
+# cell ownership. A segment owns its body and the one boundary cell to its right.
+# Only the first visible segment owns a left outer cap.
+source "$dir/scripts/render.sh"
 
 # build <tier>
 build() {
@@ -193,42 +201,42 @@ build() {
     echo "#{?#{==:$d,},#[$1=default],$tail}"
   }
   local slot='#{@workspace-slot}'
-  local sfg sbg lbg rbg
+  local sfg sbg rbg
   sfg=$(shade fg "$slot")
   sbg=$(shade bg "$slot")
   # neighbours: none at the ends of the run
-  lbg="#{?#{||:#{==:#{@workspace-pos},first},#{==:#{@workspace-pos},only}},#[bg=default],$(shade bg "#{e|-:$slot,1}")}"
   rbg="#{?#{||:#{==:#{@workspace-pos},last},#{==:#{@workspace-pos},only}},#[bg=default],$(shade bg "#{e|+:$slot,1}")}"
   # window numbers: the active tab's accent moves to its name when they're hidden
-  local cnum=""; [[ $numbers == off ]] || cnum="#I "
   local num="#I "
   [[ $numbers == off ]] && num=""
 
-  # segments -> one pill each, in a long and a short form, picked by client width
-  local n bgc txt bold inner
-  for n in "${segs[@]}"; do
-    if [[ ${SEG_STYLE[$n]} == accent ]]; then bgc=$accent txt=$dark bold="#[bold]"; else bgc=$surf txt=$text bold=""; fi
-    local open="#[fg=$bgc]#[bg=default]$lcap#[fg=$txt]#[bg=$bgc]$bold" close="#[nobold]#[fg=$bgc]#[bg=default]$rcap "
-    local icon=${SEG_ICON[$n]}
-    q set-option -g "@axolotl-seg-$n-$t-long" "${open}${icon:+$icon }${SEG_CONTENT[$n]} ${close}"
-    inner=${SEG_SHORT[$n]}
-    if [[ -n $inner ]]; then inner="${icon:+$icon }$inner "; elif [[ -n $icon ]]; then inner="$icon "; fi
-    if [[ -n $inner ]]; then q set-option -g "@axolotl-seg-$n-$t-short" "${open}${inner}${close}"
-    else q set-option -g "@axolotl-seg-$n-$t-short" ""; fi
-  done
-  q set-option -g "@axolotl-left-$t" "$(panel "$t" "${left_segs[@]}")"
-  q set-option -g "@axolotl-right-$t" "$(panel "$t" "${right_segs[@]}")"
+  build_segments "$t"
+  local panel_side panel_format
+  panel_side=left; panel "$t" "${left_segs[@]}"
+  q set-option -g "@axolotl-left-$t" "$panel_format"
+  panel_side=right; panel "$t" "${right_segs[@]}"
+  q set-option -g "@axolotl-right-$t" "$panel_format"
 
-  # one connected bar: inactive tabs show their window name abbreviated, on shades that
-  # have a fixed gradient by position; the selected tab is an accent segment with the
-  # full name. End caps need the workspace plugin's @workspace-pos (first/last
-  # visible tab); without it the bar simply has square ends.
   local first="#{||:#{==:#{@workspace-pos},first},#{==:#{@workspace-pos},only}}"
-  local wlc="#{?$first,${sfg}#[bg=default]$lcap,}"
+  local label="${num}#{=/$abbr/…:window_name}" current
+  current=$label
+  [[ $title_mode == expand ]] && current="${num}#W"
+  # Show window state in either selection state, so selecting a zoomed window
+  # doesn't insert a new cell. Bell takes precedence when both flags are set.
+  local flags="#{?window_bell_flag,#[fg=$accent] $bell,#{?window_zoomed_flag, $zoom,}}"
+  local current_flags="#{?window_bell_flag, $bell,#{?window_zoomed_flag, $zoom,}}"
+  local left="#{?$first,$(cap "$sfg" '#[bg=default]' "$lcap"),}"
+  local current_left="#{?$first,$(cap "#[fg=$accent]" '#[bg=default]' "$lcap"),}"
+  # The predecessor owns the active tab's left curve. Read the selected slot
+  # directly from tmux's live window loop, not the shell-updated nextact flag:
+  # the curve and highlight must move in the same redraw. Visible slots also
+  # handle hidden windows and gaps in window indexes.
+  local next_active="#{==:#{e|+:$slot,1},#{W:,#{@workspace-slot}}}"
+  local join="#{?$next_active,$(cap "#[fg=$accent]" "$sbg" "$lcap"),$(cap "$sfg" "$rbg" "$rcap")}"
   q set-option -g "@axolotl-win-$t" \
-    "${wlc}#[fg=$tabfg]${sbg} ${num}#{=/$abbr/…:window_name}#{?window_bell_flag,#[fg=$accent] $bell,} #{?#{==:#{@workspace-nextact},1},${sbg} ,${sfg}${rbg}$rcap}"
+    "$left$(body "#[fg=$tabfg]" "$sbg" '' "$label$flags")$join"
   q set-option -g "@axolotl-cur-$t" \
-    "#[fg=$accent]${lbg}$lcap#[fg=$dark]#[bg=$accent]#[bold] ${cnum}#W#{?window_zoomed_flag, $zoom,} #[nobold]#[fg=$accent]${rbg}$rcap"
+    "$current_left$(body "#[fg=$dark]" "#[bg=$accent]" '#[bold]' "$current$current_flags")$(cap "#[fg=$accent]" "$rbg" "$rcap")"
 }
 build rgb; build 256; build ansi
 
@@ -248,8 +256,10 @@ q set-option -g status-left "$(tier left)"
 q set-option -g status-right "$(tier right)"
 q set-option -g window-status-format "$(tier win)"
 q set-option -g window-status-current-format "$(tier cur)"
-tmux "${cmds[@]}"
+printf '%s\n' "${cmds[@]}" | tmux source-file - || exit $?
 
 # prefix + T (@axolotl-scheme-key): pick a colour scheme with live preview
 key=$(opt @axolotl-scheme-key T)
-[[ $key != off ]] && tmux bind-key "$key" display-popup -E -w 40 -h 14 -b rounded -T ' scheme ' "$dir/scripts/scheme.sh pick"
+if [[ $key != off ]]; then
+  tmux bind-key "$key" display-popup -E -w 40 -h 14 -b rounded -T ' scheme ' "$dir/scripts/scheme.sh pick"
+fi
