@@ -248,6 +248,30 @@ class StatusLayoutTest(unittest.TestCase):
                                 else:
                                     self.assertIn(f"#[fg={own}]#[bg={nxt}]", raw)
 
+    def test_panels_collapse_before_reaching_centred_tabs(self):
+        client = self.attach_client()
+        for _ in range(2):
+            self.windows.append(self.tmux(
+                "new-window", "-n", "fish", "-P", "-F", "#{window_id}", "/bin/sh",
+            ).strip())
+        self.select(0)
+        self.configure_panel()
+        self.tmux("set-option", "-g", "@axolotl-segment-b-icon", "B")
+        for name in "abc":
+            self.tmux("set-option", "-g", "@axolotl-segment-" + name,
+                      name.upper() * 14)
+        self.load_theme("off")
+        for width in (160, 130, 110, 90, 70):
+            self.tmux("refresh-client", "-t", client, "-C", f"{width},24")
+            tabs = int(self.tmux("display-message", "-p", "-c", client,
+                "#{w:#{W:#{?#{!=:#{@workspace-slot},},#{E:@axolotl-win-rgb},},#{E:@axolotl-cur-rgb}}}").strip())
+            budget = (width - tabs) // 2
+            for side in ("left", "right"):
+                panel = int(self.tmux("display-message", "-p", "-c", client,
+                    f"#{{w:#{{E:@axolotl-{side}-rgb}}}}").strip())
+                with self.subTest(width=width, side=side):
+                    self.assertLessEqual(panel, budget)
+
     def test_modules_can_move_between_panels(self):
         client = self.attach_client()
         self.tmux("refresh-client", "-t", client, "-C", "180,24")
@@ -321,6 +345,25 @@ class StatusLayoutTest(unittest.TestCase):
         mild = shades["fade", "left"][2]
         self.assertGreater(int(stronger[1:3], 16) - int(base[1:3], 16),
                            int(mild[1:3], 16) - int(base[1:3], 16))
+
+    def test_workspace_uses_panel_fade_with_optional_accent(self):
+        self.tmux("set-option", "-g", "@axolotl-right", "branch workspace clock")
+        self.tmux("set-option", "-g", "@axolotl-segment-branch", "main")
+        self.tmux("set-option", "-w", "-t", self.windows[2], "@workspace", "/tmp/project")
+        self.tmux("set-option", "-g", "@axolotl-panel-gradient", "fade")
+        self.load_theme("off")
+
+        def workspace_bg():
+            raw = self.tmux("show-option", "-gqv", "@axolotl-panel-right-rgb-1-long")
+            return re.search(r"#\[bg=([^\]]+)\]", raw).group(1)
+
+        surface = self.tmux("show-option", "-gqv", "@axolotl-pal-rgb-surface").strip()
+        accent = self.tmux("show-option", "-gqv", "@axolotl-pal-rgb-accent").strip()
+        self.assertNotIn(workspace_bg(), (surface, accent))
+
+        self.tmux("set-option", "-g", "@axolotl-segment-workspace-style", "accent")
+        self.load_theme("off")
+        self.assertEqual(workspace_bg(), accent)
 
     def test_custom_segment_literals_survive_configuration_transport(self):
         client = self.attach_client()

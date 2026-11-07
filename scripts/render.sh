@@ -23,8 +23,11 @@ panel_bg() {
 }
 
 build_segments() {
-  local t=$1 n side i bgc txt bold icon long short visible wide
+  local t=$1 n side i bgc txt bold icon long short visible wide long_width budget
   local -a items
+  # Centre tabs have a fixed position. Each panel may use only the cells between
+  # its screen edge and the tab group, so account for the live window list.
+  budget="#{e|/:#{e|-:#{client_width},#{w:#{W:#{?#{!=:#{@workspace-slot},},#{E:@axolotl-win-$t},},#{E:@axolotl-cur-$t}}}},2}"
   for n in "${segs[@]}"; do
     icon=${SEG_ICON[$n]}
     short=${SEG_SHORT[$n]}
@@ -38,6 +41,11 @@ build_segments() {
   done
   for side in left right; do
     if [[ $side == left ]]; then items=("${left_segs[@]}"); else items=("${right_segs[@]}"); fi
+    long_width=x
+    for i in "${!items[@]}"; do
+      long_width+="#{E:@axolotl-panel-$side-$t-$i-long}x"
+    done
+    q set-option -g "@axolotl-panel-$side-$t-long-width" "#{w:$long_width}"
     for i in "${!items[@]}"; do
       n=${items[i]}
       bgc=$(panel_bg "$side" "$i" "${#items[@]}" "$n")
@@ -47,7 +55,7 @@ build_segments() {
       long="${icon:+$icon }${SEG_CONTENT[$n]}"
       short=${SEG_SHORT[$n]}
       [[ -n $short ]] && short="${icon:+$icon }$short" || short=$icon
-      wide="#{e|>=:#{client_width},${SEG_MIN[$n]}}"
+      wide="#{&&:#{e|>=:#{client_width},${SEG_MIN[$n]}},#{e|>=:$budget,#{E:@axolotl-panel-$side-$t-long-width}}}"
       q set-option -g "@axolotl-panel-$side-$t-$i-long" "$(body "#[fg=$txt]" "#[bg=$bgc]" "$bold" "$long")"
       q set-option -g "@axolotl-panel-$side-$t-$i-short" "$(body "#[fg=$txt]" "#[bg=$bgc]" "$bold" "$short")"
       q set-option -g "@axolotl-panel-$side-$t-$i-body" "#{?$wide,#{E:@axolotl-panel-$side-$t-$i-long},#{E:@axolotl-panel-$side-$t-$i-short}}"

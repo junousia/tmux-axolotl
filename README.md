@@ -39,14 +39,17 @@ set -g @axolotl-panel-gradient-strength '35' # accent tint at inner edge, 0–10
 The fade blends the scheme's `surface` toward its `accent` colour, using
 35% of the distance at the inner edge by default. Increase
 `@axolotl-panel-gradient-strength` for a stronger effect or lower it for a
-quieter one. Accent segments keep the full accent colour. The right panel runs the gradient in reverse order, so both
-sides deepen toward the window list. On terminals without hex colours, fade
+quieter one. The workspace segment uses the same fade as its neighbours. Accent
+segments keep the full accent colour; set `@axolotl-segment-workspace-style`
+to `accent` if you want that look. The right panel runs the gradient in reverse
+order, so both sides deepen toward the window list. On terminals without hex colours, fade
 falls back to alternate. Hidden segments retain their shade position, keeping
 other segments steady as conditions change.
 
 The window list uses tmux's `absolute-centre` alignment, which centres it on
-the terminal rather than in the space left between side panels. Narrow
-terminals may still force tmux to fit or truncate overlapping content.
+the terminal. Side panels use the remaining space on each side and switch to
+short labels before they reach the tabs. Extremely narrow terminals may still
+force tmux to truncate content.
 
 Built-in segments: `host`, `branch` (hidden outside git repos), and `workspace`. Optional modules are `session`, `cwd`, `pane`, and `clock`. Each segment has a long and a short form and **expands as the terminal gets wider**: the long form needs a client width of at least `@axolotl-segment-<name>-min` columns (host 110, branch 90, workspace 70, your own 100), below that the short form is shown (just the icon unless you set `-short`). The width thresholds determine which segments collapse first. Iconless segments with no short form disappear. Hidden segments leave no gaps or orphaned caps; their visible neighbours join directly.
 
