@@ -27,7 +27,48 @@ set -g @axolotl-left  'host'                    # default
 set -g @axolotl-right 'branch workspace'        # default
 ```
 
-Built-in segments: `host`, `branch` (hidden outside git repos), and `workspace`. Each segment has a long and a short form and **expands as the terminal gets wider**: the long form needs a client width of at least `@axolotl-segment-<name>-min` columns (host 110, branch 90, workspace 70, your own 100), below that the short form is shown (just the icon unless you set `-short`). The width thresholds determine which segments collapse first. Iconless segments with no short form disappear. Hidden segments leave no gaps or orphaned caps; their visible neighbours join directly.
+Built-in segments: `host`, `branch` (hidden outside git repos), and `workspace`. Optional modules are `session`, `cwd`, `pane`, and `clock`. Each segment has a long and a short form and **expands as the terminal gets wider**: the long form needs a client width of at least `@axolotl-segment-<name>-min` columns (host 110, branch 90, workspace 70, your own 100), below that the short form is shown (just the icon unless you set `-short`). The width thresholds determine which segments collapse first. Iconless segments with no short form disappear. Hidden segments leave no gaps or orphaned caps; their visible neighbours join directly.
+
+The optional modules can go on either side in any order. For example:
+
+```tmux
+set -g @axolotl-left  'host session'
+set -g @axolotl-right 'branch workspace clock'
+# set -g @axolotl-left 'none'     # an empty panel, if desired
+```
+
+| Module | Shows |
+| --- | --- |
+| `session` | Current tmux session |
+| `cwd` | Active pane's directory name |
+| `pane` | Active pane's command |
+| `clock` | Local time, updated by tmux's normal status interval |
+
+All four use tmux formats, so they need no operating system tools or per-refresh
+shell processes. They work with tmux 3.3+ on Linux x86/ARM and macOS. Existing
+`host`, `branch`, and `workspace` segments also live in `segments/` now.
+
+To add a distributable module, create `segments/<name>.sh` that assigns only its
+defaults. It is sourced once when the theme loads and only when `<name>` appears
+in a panel list:
+
+```bash
+segment_content='#{session_name}' # any tmux format; #() is optional
+segment_icon='S'
+segment_short=''                  # optional short text, default icon only
+segment_style=surface             # surface or accent
+segment_if=''                     # optional tmux condition
+segment_min=90                    # width for the long form
+```
+
+Add the name to `@axolotl-left` or `@axolotl-right`; use `none` to leave a
+panel empty. Set `@axolotl-segment-<name>-icon` to `none` to remove a
+module's default icon. No registration table or
+renderer change is needed. Use tmux formats for cheap dynamic values. An
+external command in `#()` runs only when that module is enabled, so modules
+that need system tools can select them at runtime and degrade cleanly on other
+platforms. The theme resolves its own installation directory; module placement
+never depends on a home-directory or platform path.
 
 **Add your own**, from `tmux.conf` or from another plugin:
 
@@ -94,6 +135,7 @@ Add your own by dropping a file in `schemes/` that sets `accent`, `fg`, `muted`,
 ## Requirements
 
 - tmux 3.3+
+- Bash 4+ on `PATH` (macOS ships Bash 3.2; install a newer Bash with Homebrew or Nix)
 - A [Nerd Font](https://www.nerdfonts.com/) (or any font with powerline glyphs) in your terminal
 - [tmux-git-workspaces](https://github.com/junousia/tmux-git-workspaces), which tags windows with their workspace and filters the window list
 
@@ -139,7 +181,7 @@ not touched. They cover title columns and selection curves before and after work
 window gaps, all
 three colour tiers and gradients, window numbers, zoom state, single tabs,
 optional title expansion, panel visibility and width thresholds, seam colours,
-and literal custom segment values.
+literal custom segment values, and moving optional modules between panels.
 
 `scripts/render.sh` contains the shared body/cap geometry and panel composition.
 The main script resolves options and palettes, then streams one quoted

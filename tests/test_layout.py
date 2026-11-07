@@ -247,6 +247,50 @@ class StatusLayoutTest(unittest.TestCase):
                                 else:
                                     self.assertIn(f"#[fg={own}]#[bg={nxt}]", raw)
 
+    def test_modules_can_move_between_panels(self):
+        client = self.attach_client()
+        self.tmux("refresh-client", "-t", client, "-C", "180,24")
+        self.tmux("set-option", "-g", "@axolotl-segment-session-icon", "S")
+        self.tmux("set-option", "-g", "@axolotl-segment-cwd-icon", "D")
+        self.tmux("set-option", "-g", "@axolotl-segment-pane-icon", "P")
+        self.tmux("set-option", "-g", "@axolotl-segment-clock-icon", "T")
+        for left, right in (("session cwd", "pane clock"),
+                            ("clock pane", "cwd session")):
+            self.tmux("set-option", "-g", "@axolotl-left", left)
+            self.tmux("set-option", "-g", "@axolotl-right", right)
+            self.load_theme("off")
+            for side, names in (("left", left.split()), ("right", right.split())):
+                raw = self.tmux("display-message", "-p", "-c", client,
+                                f"#{{E:@axolotl-{side}-rgb}}")
+                bar = STYLE.sub("", raw)
+                self.assertEqual(bar.count("" if side == "right" else ""),
+                                 len(names))
+                self.assertIn("tabs" if "session" in names else "P sh" if "pane" in names else "D", bar)
+                self.assertNotIn("#(", self.tmux("show-option", "-gqv",
+                    f"@axolotl-{side}-rgb"))
+                if "clock" in names:
+                    self.assertRegex(bar, r"\b[0-2][0-9]:[0-5][0-9]\b")
+                if "cwd" in names:
+                    cwd = self.tmux("display-message", "-p", "-c", client,
+                                    "#{b:pane_current_path}").strip()
+                    self.assertIn("D " + cwd, bar)
+                for name in names:
+                    icon = {"session": "S", "cwd": "D", "pane": "P", "clock": "T"}[name]
+                    self.assertIn(icon + " ", bar)
+
+    def test_empty_panel_and_icon_override(self):
+        client = self.attach_client()
+        self.tmux("refresh-client", "-t", client, "-C", "160,24")
+        self.tmux("set-option", "-g", "@axolotl-left", "none")
+        self.tmux("set-option", "-g", "@axolotl-right", "session")
+        self.tmux("set-option", "-g", "@axolotl-segment-session-icon", "none")
+        self.load_theme("off")
+        self.assertEqual(self.tmux("display-message", "-p", "-c", client,
+                         "#{E:@axolotl-left-rgb}").strip(), "")
+        raw = self.tmux("display-message", "-p", "-c", client,
+                        "#{E:@axolotl-right-rgb}")
+        self.assertEqual(STYLE.sub("", raw).strip(), " tabs ")
+
     def test_custom_segment_literals_survive_configuration_transport(self):
         client = self.attach_client()
         literal = "O'Reilly \"$HOME\" \\path ; #"

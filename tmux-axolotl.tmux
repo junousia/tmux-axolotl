@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # tmux-axolotl: status bar with a UI feel: powerline pill and rounded tabs.
+if (( BASH_VERSINFO[0] < 4 )); then
+  printf 'tmux-axolotl requires Bash 4 or newer on PATH\n' >&2
+  exit 1
+fi
 # Needs a Nerd Font and the tmux-git-workspaces plugin (which provides
 # @workspace / @workspace-active).
 #
@@ -136,6 +140,8 @@ right_def="branch workspace"
 [[ $pill_pos == left ]] && { left_def="$left_def workspace"; right_def=branch; }
 read -r -a left_segs <<<"$(opt @axolotl-left "$left_def")"
 read -r -a right_segs <<<"$(opt @axolotl-right "$right_def")"
+[[ ${#left_segs[@]} == 1 && ${left_segs[0]} == none ]] && left_segs=()
+[[ ${#right_segs[@]} == 1 && ${right_segs[0]} == none ]] && right_segs=()
 segs=("${left_segs[@]}" "${right_segs[@]}")
 fmt=; for n in "${segs[@]}"; do for k in "" -icon -short -style -if -min; do fmt+="#{@axolotl-segment-$n$k}$US"; done; done
 IFS=$US read -r -a svals < <(tmux display -p "$fmt")
@@ -144,16 +150,21 @@ si=0
 for n in "${segs[@]}"; do
   u_content=${svals[si++]-}; u_icon=${svals[si++]-}; u_short=${svals[si++]-}
   u_style=${svals[si++]-}; u_if=${svals[si++]-}; u_min=${svals[si++]-}
-  # built-in defaults, then the user's own values on top
-  c=; i=; st=surface; f=; m=100
-  case $n in
-    host)      c='#h'; i=$hosticon; m=110 ;;
-    branch)    c=$git; i=$branch_icon; f="#{!=:$active_root,(no repo)}"; m=90 ;;
-    workspace) c=$ws; i=$folder; st=accent; m=70 ;;
-  esac
-  [[ -n $u_content ]] && c="#{E:@axolotl-segment-$n}"
-  SEG_CONTENT[$n]=$c; SEG_ICON[$n]=${u_icon:-$i}; SEG_SHORT[$n]=$u_short
-  SEG_STYLE[$n]=${u_style:-$st}; SEG_IF[$n]=${u_if:-$f}; SEG_MIN[$n]=${u_min:-$m}
+  # A module only declares defaults. Layout, styling and placement stay in the
+  # shared renderer; modules are sourced once when this theme is loaded.
+  segment_content= segment_icon= segment_short= segment_style=surface
+  segment_if= segment_min=100
+  if [[ $n =~ ^[a-z][a-z0-9_-]*$ && -f $dir/segments/$n.sh ]]; then
+    source "$dir/segments/$n.sh"
+  fi
+  [[ -n $u_content ]] && segment_content="#{E:@axolotl-segment-$n}"
+  SEG_CONTENT[$n]=$segment_content
+  SEG_ICON[$n]=${u_icon:-$segment_icon}
+  [[ ${SEG_ICON[$n]} == none ]] && SEG_ICON[$n]=''
+  SEG_SHORT[$n]=${u_short:-$segment_short}
+  SEG_STYLE[$n]=${u_style:-$segment_style}
+  SEG_IF[$n]=${u_if:-$segment_if}
+  SEG_MIN[$n]=${u_min:-$segment_min}
 done
 
 # Shared geometry for tabs and panels; colour and visibility are separate from
