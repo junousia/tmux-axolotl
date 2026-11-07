@@ -33,7 +33,7 @@ fi
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # read every option we use in a single tmux call (each tmux call is a process)
-names_opt=(pill scheme numbers host justify abbrev title-mode scheme-key gradient gradient-steps panel-gradient left right accent fg muted dark surface active)
+names_opt=(pill scheme numbers host justify abbrev title-mode scheme-key gradient gradient-steps panel-gradient panel-gradient-strength left right accent fg muted dark surface active)
 US=$'\x1f'
 fmt=; for n in "${names_opt[@]}"; do fmt+="#{@axolotl-$n}$US"; done
 IFS=$US read -r -a vals < <(tmux display -p "$fmt")
@@ -82,6 +82,10 @@ abbr=$(opt @axolotl-abbrev 4)
 title_mode=$(opt @axolotl-title-mode stable)
 gradient=$(opt @axolotl-gradient '')
 panel_gradient=$(opt @axolotl-panel-gradient "$gradient")
+panel_strength=$(opt @axolotl-panel-gradient-strength 35)
+[[ $panel_strength =~ ^[0-9]+$ ]] || panel_strength=35
+panel_strength=$((10#$panel_strength))
+(( panel_strength > 100 )) && panel_strength=100
 gsteps=$(opt @axolotl-gradient-steps 4)
 (( gsteps < 2 )) && gsteps=2; (( gsteps > 8 )) && gsteps=8
 
@@ -223,19 +227,23 @@ build() {
   local num="#I "
   [[ $numbers == off ]] && num=""
 
-  # Side-panel shades run from each outer edge toward the window list. Keep
-  # accent segments untouched so workspace emphasis stays consistent.
+  # Side-panel shades run from each outer edge toward the window list. Tint
+  # surfaces toward the accent; the old surface-to-active range was too subtle.
+  # Accent segments stay at full strength for emphasis.
   local pstyle=$panel_gradient phex=0 k
   local -a panel_shades
-  [[ $t != ansi && ${pal[rgb-surface]} =~ $hexre && ${pal[rgb-active]} =~ $hexre ]] && phex=1
+  [[ $t != ansi && ${pal[rgb-surface]} =~ $hexre && ${pal[rgb-accent]} =~ $hexre ]] && phex=1
+  local endpoint=$act
+  (( phex )) && endpoint=$(blend "${pal[rgb-surface]}" "${pal[rgb-accent]}" "$panel_strength" 100)
+  [[ $t == 256 && $phex == 1 ]] && endpoint=$(to256 "$endpoint")
   [[ -z $pstyle ]] && { (( phex )) && pstyle=fade || pstyle=flat; }
   [[ $pstyle == fade ]] && (( ! phex )) && pstyle=alternate
   case $pstyle in
     flat) panel_shades=("$surf") ;;
-    alternate) panel_shades=("$surf" "$act") ;;
+    alternate) panel_shades=("$surf" "$endpoint") ;;
     *) pstyle=fade
        for ((k = 0; k < gsteps; k++)); do
-         panel_shades[k]=$(blend "${pal[rgb-surface]}" "${pal[rgb-active]}" "$k" "$((gsteps - 1))")
+         panel_shades[k]=$(blend "${pal[rgb-surface]}" "${pal[rgb-accent]}" "$((k * panel_strength))" "$((100 * (gsteps - 1)))")
          [[ $t == 256 ]] && panel_shades[k]=$(to256 "${panel_shades[k]}")
        done ;;
   esac

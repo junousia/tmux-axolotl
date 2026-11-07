@@ -33,10 +33,13 @@ selected gradient can be `fade`, `alternate`, or `flat`:
 ```tmux
 set -g @axolotl-panel-gradient 'fade'  # defaults to @axolotl-gradient
 set -g @axolotl-gradient-steps '4'     # shared fade steps, 2–8
+set -g @axolotl-panel-gradient-strength '35' # accent tint at inner edge, 0–100%
 ```
 
-The fade blends the scheme's `surface` and `active` colours. Accent segments keep
-the accent colour. The right panel runs the gradient in reverse order, so both
+The fade blends the scheme's `surface` toward its `accent` colour, using
+35% of the distance at the inner edge by default. Increase
+`@axolotl-panel-gradient-strength` for a stronger effect or lower it for a
+quieter one. Accent segments keep the full accent colour. The right panel runs the gradient in reverse order, so both
 sides deepen toward the window list. On terminals without hex colours, fade
 falls back to alternate. Hidden segments retain their shade position, keeping
 other segments steady as conditions change.
@@ -175,6 +178,7 @@ set -g @axolotl-pill 'right'          # or 'left': moves the workspace segment t
 set -g @axolotl-numbers 'on'          # 'off' hides window numbers (the active tab's name takes the accent)
 set -g @axolotl-gradient 'fade'       # tab shading: fade | alternate | flat (default: fade; flat for 'terminal')
 set -g @axolotl-panel-gradient 'fade' # panel shading; defaults to @axolotl-gradient
+set -g @axolotl-panel-gradient-strength '35' # accent tint at inner edge, 0–100%
 set -g @axolotl-gradient-steps '4'    # number of shades a fade uses (2-8)
 set -g @axolotl-abbrev '4'            # title limit for both selection states
 set -g @axolotl-title-mode 'stable'   # 'expand' shows the selected title in full

@@ -311,6 +311,16 @@ class StatusLayoutTest(unittest.TestCase):
         self.assertEqual(len(set(shades["flat", "left"])), 1)
         self.assertEqual(len(set(shades["alternate", "left"])), 2)
         self.assertEqual(len(set(shades["fade", "left"])), 3)
+        # Increasing the strength must move the inner shade farther from the
+        # surface while keeping the outer shade and accent segment unchanged.
+        self.tmux("set-option", "-g", "@axolotl-panel-gradient-strength", "70")
+        self.load_theme("off")
+        raw = self.tmux("show-option", "-gqv", "@axolotl-panel-left-rgb-2-long")
+        stronger = re.search(r"#\[bg=([^\]]+)\]", raw).group(1)
+        base = shades["fade", "left"][0]
+        mild = shades["fade", "left"][2]
+        self.assertGreater(int(stronger[1:3], 16) - int(base[1:3], 16),
+                           int(mild[1:3], 16) - int(base[1:3], 16))
 
     def test_custom_segment_literals_survive_configuration_transport(self):
         client = self.attach_client()
