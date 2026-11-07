@@ -27,6 +27,24 @@ set -g @axolotl-left  'host'                    # default
 set -g @axolotl-right 'branch workspace'        # default
 ```
 
+Surface segments shade from each panel's outer edge toward the centre. The
+selected gradient can be `fade`, `alternate`, or `flat`:
+
+```tmux
+set -g @axolotl-panel-gradient 'fade'  # defaults to @axolotl-gradient
+set -g @axolotl-gradient-steps '4'     # shared fade steps, 2–8
+```
+
+The fade blends the scheme's `surface` and `active` colours. Accent segments keep
+the accent colour. The right panel runs the gradient in reverse order, so both
+sides deepen toward the window list. On terminals without hex colours, fade
+falls back to alternate. Hidden segments retain their shade position, keeping
+other segments steady as conditions change.
+
+The window list uses tmux's `absolute-centre` alignment, which centres it on
+the terminal rather than in the space left between side panels. Narrow
+terminals may still force tmux to fit or truncate overlapping content.
+
 Built-in segments: `host`, `branch` (hidden outside git repos), and `workspace`. Optional modules are `session`, `cwd`, `pane`, and `clock`. Each segment has a long and a short form and **expands as the terminal gets wider**: the long form needs a client width of at least `@axolotl-segment-<name>-min` columns (host 110, branch 90, workspace 70, your own 100), below that the short form is shown (just the icon unless you set `-short`). The width thresholds determine which segments collapse first. Iconless segments with no short form disappear. Hidden segments leave no gaps or orphaned caps; their visible neighbours join directly.
 
 The optional modules can go on either side in any order. For example:
@@ -155,12 +173,13 @@ Any tmux colour works: ANSI names (`yellow`, `brightblack`), `colourN`, or `#rrg
 ```tmux
 set -g @axolotl-pill 'right'          # or 'left': moves the workspace segment to the left panel (see segments)
 set -g @axolotl-numbers 'on'          # 'off' hides window numbers (the active tab's name takes the accent)
-set -g @axolotl-gradient 'fade'       # inactive tab shading: fade | alternate | flat (default: fade; flat for the 'terminal' scheme)
+set -g @axolotl-gradient 'fade'       # tab shading: fade | alternate | flat (default: fade; flat for 'terminal')
+set -g @axolotl-panel-gradient 'fade' # panel shading; defaults to @axolotl-gradient
 set -g @axolotl-gradient-steps '4'    # number of shades a fade uses (2-8)
 set -g @axolotl-abbrev '4'            # title limit for both selection states
 set -g @axolotl-title-mode 'stable'   # 'expand' shows the selected title in full
 set -g @axolotl-host 'on'             # 'off' hides the hostname pill
-set -g @axolotl-justify 'centre'      # 'left' left-aligns the tabs
+set -g @axolotl-justify 'absolute-centre' # fixed screen centre; 'left', 'centre', 'right' are also supported
 set -g @axolotl-accent 'yellow'       # pill, active tab index, bell glyph
 set -g @axolotl-fg 'white'            # text on the branch segment and active tab
 set -g @axolotl-muted 'brightblack'   # inactive windows
@@ -180,7 +199,7 @@ The checks use private tmux servers and control clients; existing sessions are
 not touched. They cover title columns and selection curves before and after workspace updates, filtered
 window gaps, all
 three colour tiers and gradients, window numbers, zoom state, single tabs,
-optional title expansion, panel visibility and width thresholds, seam colours,
+optional title expansion, panel visibility, gradients and width thresholds, seam colours,
 literal custom segment values, and moving optional modules between panels.
 
 `scripts/render.sh` contains the shared body/cap geometry and panel composition.

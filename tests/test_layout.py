@@ -200,6 +200,7 @@ class StatusLayoutTest(unittest.TestCase):
         self.fail("control client did not attach")
 
     def configure_panel(self):
+        self.tmux("set-option", "-g", "@axolotl-panel-gradient", "flat")
         for side in ("left", "right"):
             self.tmux("set-option", "-g", "@axolotl-" + side, "a b c")
         for name, style, minimum, icon in (("a", "surface", "110", "A"),
@@ -290,6 +291,26 @@ class StatusLayoutTest(unittest.TestCase):
         raw = self.tmux("display-message", "-p", "-c", client,
                         "#{E:@axolotl-right-rgb}")
         self.assertEqual(STYLE.sub("", raw).strip(), " tabs ")
+
+    def test_panel_gradient_runs_from_outer_edges_to_centre(self):
+        self.configure_panel()
+        self.tmux("set-option", "-g", "@axolotl-segment-b-style", "surface")
+        shades = {}
+        for mode in ("flat", "alternate", "fade"):
+            self.tmux("set-option", "-g", "@axolotl-panel-gradient", mode)
+            self.load_theme("off")
+            self.assertEqual(self.tmux("show-option", "-gqv", "status-justify").strip(),
+                             "absolute-centre")
+            for side in ("left", "right"):
+                shades[mode, side] = []
+                for i in range(3):
+                    raw = self.tmux("show-option", "-gqv",
+                                    f"@axolotl-panel-{side}-rgb-{i}-long")
+                    shades[mode, side].append(re.search(r"#\[bg=([^\]]+)\]", raw).group(1))
+            self.assertEqual(shades[mode, "left"], list(reversed(shades[mode, "right"])))
+        self.assertEqual(len(set(shades["flat", "left"])), 1)
+        self.assertEqual(len(set(shades["alternate", "left"])), 2)
+        self.assertEqual(len(set(shades["fade", "left"])), 3)
 
     def test_custom_segment_literals_survive_configuration_transport(self):
         client = self.attach_client()

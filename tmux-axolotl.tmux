@@ -20,7 +20,7 @@ fi
 # prefix + T opens a colour scheme picker with live preview (@axolotl-scheme-key
 # changes the key, 'off' disables the binding).
 # @axolotl-host 'off' hides the hostname pill; @axolotl-justify 'left' left-aligns
-# the tabs instead of centring them.
+# the tabs instead of centring them (default: absolute-centre).
 # @axolotl-numbers 'off' hides the window numbers in the tabs.
 #
 # Colours: @axolotl-scheme picks a palette (default 'terminal': the terminal's
@@ -33,7 +33,7 @@ fi
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # read every option we use in a single tmux call (each tmux call is a process)
-names_opt=(pill scheme numbers host justify abbrev title-mode scheme-key gradient gradient-steps left right accent fg muted dark surface active)
+names_opt=(pill scheme numbers host justify abbrev title-mode scheme-key gradient gradient-steps panel-gradient left right accent fg muted dark surface active)
 US=$'\x1f'
 fmt=; for n in "${names_opt[@]}"; do fmt+="#{@axolotl-$n}$US"; done
 IFS=$US read -r -a vals < <(tmux display -p "$fmt")
@@ -77,10 +77,11 @@ pill_pos=$(opt @axolotl-pill right)
 scheme=$(opt @axolotl-scheme terminal)
 numbers=$(opt @axolotl-numbers on)
 host_on=$(opt @axolotl-host on)
-justify=$(opt @axolotl-justify centre)
+justify=$(opt @axolotl-justify absolute-centre)
 abbr=$(opt @axolotl-abbrev 4)
 title_mode=$(opt @axolotl-title-mode stable)
 gradient=$(opt @axolotl-gradient '')
+panel_gradient=$(opt @axolotl-panel-gradient "$gradient")
 gsteps=$(opt @axolotl-gradient-steps 4)
 (( gsteps < 2 )) && gsteps=2; (( gsteps > 8 )) && gsteps=8
 
@@ -222,6 +223,22 @@ build() {
   local num="#I "
   [[ $numbers == off ]] && num=""
 
+  # Side-panel shades run from each outer edge toward the window list. Keep
+  # accent segments untouched so workspace emphasis stays consistent.
+  local pstyle=$panel_gradient phex=0 k
+  local -a panel_shades
+  [[ $t != ansi && ${pal[rgb-surface]} =~ $hexre && ${pal[rgb-active]} =~ $hexre ]] && phex=1
+  [[ -z $pstyle ]] && { (( phex )) && pstyle=fade || pstyle=flat; }
+  [[ $pstyle == fade ]] && (( ! phex )) && pstyle=alternate
+  case $pstyle in
+    flat) panel_shades=("$surf") ;;
+    alternate) panel_shades=("$surf" "$act") ;;
+    *) pstyle=fade
+       for ((k = 0; k < gsteps; k++)); do
+         panel_shades[k]=$(blend "${pal[rgb-surface]}" "${pal[rgb-active]}" "$k" "$((gsteps - 1))")
+         [[ $t == 256 ]] && panel_shades[k]=$(to256 "${panel_shades[k]}")
+       done ;;
+  esac
   build_segments "$t"
   local panel_side panel_format
   panel_side=left; panel "$t" "${left_segs[@]}"

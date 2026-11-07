@@ -4,34 +4,54 @@
 cap() { printf '%s' "#[nobold]$1$2$3"; }
 body() { printf '%s' "#[nobold]$1$2$3 $4 #[nobold]"; }
 
-segment_bg() {
-  if [[ ${SEG_STYLE[$1]} == accent ]]; then
+# panel_bg <side> <index> <count> <name>: a fixed shade by position.
+# The right panel is counted from its outer (right) edge. Hidden segments keep
+# their slot, as tabs do, so conditional visibility never shifts other colours.
+panel_bg() {
+  local side=$1 i=$2 count=$3 n=$4 slot
+  if [[ ${SEG_STYLE[$n]} == accent ]]; then
     printf '%s' "$accent"
-  else
-    printf '%s' "$surf"
+    return
   fi
+  if [[ $side == right ]]; then slot=$((count - 1 - i)); else slot=$i; fi
+  case $pstyle in
+    flat) slot=0 ;;
+    alternate) slot=$((slot % 2)) ;;
+    *) (( slot >= gsteps )) && slot=$((gsteps - 2 + (slot - gsteps + 2) % 2)) ;;
+  esac
+  printf '%s' "${panel_shades[$slot]}"
 }
 
 build_segments() {
-  local t=$1 n bgc txt bold icon long short visible wide
+  local t=$1 n side i bgc txt bold icon long short visible wide
+  local -a items
   for n in "${segs[@]}"; do
-    bgc=$(segment_bg "$n")
-    txt=$text bold=''
-    [[ ${SEG_STYLE[$n]} == accent ]] && { txt=$dark; bold='#[bold]'; }
     icon=${SEG_ICON[$n]}
-    long="${icon:+$icon }${SEG_CONTENT[$n]}"
     short=${SEG_SHORT[$n]}
-    if [[ -n $short ]]; then short="${icon:+$icon }$short"; else short=$icon; fi
+    [[ -n $short ]] && short="${icon:+$icon }$short" || short=$icon
     wide="#{e|>=:#{client_width},${SEG_MIN[$n]}}"
-    # Iconless custom segments with no short form disappear on narrow clients.
     visible=1
     [[ -z $short ]] && visible=$wide
-    [[ -z $long ]] && visible=0
+    [[ -z ${SEG_CONTENT[$n]} && -z $icon ]] && visible=0
     [[ -n ${SEG_IF[$n]} ]] && visible="#{&&:${SEG_IF[$n]},$visible}"
     q set-option -g "@axolotl-seg-$n-visible" "$visible"
-    q set-option -g "@axolotl-seg-$n-$t-long" "$(body "#[fg=$txt]" "#[bg=$bgc]" "$bold" "$long")"
-    q set-option -g "@axolotl-seg-$n-$t-short" "$(body "#[fg=$txt]" "#[bg=$bgc]" "$bold" "$short")"
-    q set-option -g "@axolotl-seg-$n-$t-body" "#{?$wide,#{E:@axolotl-seg-$n-$t-long},#{E:@axolotl-seg-$n-$t-short}}"
+  done
+  for side in left right; do
+    if [[ $side == left ]]; then items=("${left_segs[@]}"); else items=("${right_segs[@]}"); fi
+    for i in "${!items[@]}"; do
+      n=${items[i]}
+      bgc=$(panel_bg "$side" "$i" "${#items[@]}" "$n")
+      txt=$text bold=''
+      [[ ${SEG_STYLE[$n]} == accent ]] && { txt=$dark; bold='#[bold]'; }
+      icon=${SEG_ICON[$n]}
+      long="${icon:+$icon }${SEG_CONTENT[$n]}"
+      short=${SEG_SHORT[$n]}
+      [[ -n $short ]] && short="${icon:+$icon }$short" || short=$icon
+      wide="#{e|>=:#{client_width},${SEG_MIN[$n]}}"
+      q set-option -g "@axolotl-panel-$side-$t-$i-long" "$(body "#[fg=$txt]" "#[bg=$bgc]" "$bold" "$long")"
+      q set-option -g "@axolotl-panel-$side-$t-$i-short" "$(body "#[fg=$txt]" "#[bg=$bgc]" "$bold" "$short")"
+      q set-option -g "@axolotl-panel-$side-$t-$i-body" "#{?$wide,#{E:@axolotl-panel-$side-$t-$i-long},#{E:@axolotl-panel-$side-$t-$i-short}}"
+    done
   done
 }
 
@@ -47,7 +67,7 @@ panel() {
   # Right-to-left pass: cache the next visible background for each position.
   for ((i = ${#items[@]} - 1; i >= 0; i--)); do
     n=${items[i]}
-    bgc=$(segment_bg "$n")
+    bgc=$(panel_bg "$panel_side" "$i" "${#items[@]}" "$n")
     visible="#{E:@axolotl-seg-$n-visible}"
     # These options include the ordered group to support a segment on both sides.
     q set-option -g "@axolotl-panel-$panel_side-$t-$i-next" "$next_bg"
@@ -61,7 +81,7 @@ panel() {
   done
   for i in "${!items[@]}"; do
     n=${items[i]}
-    bgc=$(segment_bg "$n")
+    bgc=$(panel_bg "$panel_side" "$i" "${#items[@]}" "$n")
     visible="#{E:@axolotl-seg-$n-visible}"
     q set-option -g "@axolotl-panel-$panel_side-$t-$i-previous" "$previous"
     opening="#{?$previous,,$(cap "#[fg=$bgc]" '#[bg=default]' "$lcap")}"
@@ -73,7 +93,7 @@ panel() {
     else
       closing=$(cap "#[fg=$bgc]" "#{E:@axolotl-panel-$panel_side-$t-$i-next}" "$rcap")
     fi
-    out+="#{?$visible,$opening#{E:@axolotl-seg-$n-$t-body}$closing,}"
+    out+="#{?$visible,$opening#{E:@axolotl-panel-$panel_side-$t-$i-body}$closing,}"
     previous="#{||:#{E:@axolotl-panel-$panel_side-$t-$i-previous},$visible}"
   done
   panel_format=$out
