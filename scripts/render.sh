@@ -30,7 +30,7 @@ build_segments() {
   # Count only the tabs that are drawn: with the workspace filter on, windows of
   # other workspaces are hidden (the plugin renders them empty) but still carry
   # a slot, and counting them shrank the budget until the panels collapsed.
-  local shown="#{&&:#{!=:#{@workspace-slot},},#{||:#{==:#{@workspaces-filter},off},#{==:#{@workspace},#{W:,#{@workspace}}}}}"
+  local shown="#{&&:#{!=:#{@workspace-slot},},#{||:#{==:#{@workspaces-filter},off},#{==:#{$scope_key},#{W:,#{$scope_key}}}}}"
   budget="#{e|/:#{e|-:#{client_width},#{w:#{W:#{?$shown,#{E:@axolotl-win-$t},},#{E:@axolotl-cur-$t}}}},2}"
   for n in "${segs[@]}"; do
     icon=${SEG_ICON[$n]}

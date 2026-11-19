@@ -71,11 +71,19 @@ branch_icon=$'\xee\x82\xa0'; folder=$'\xef\x81\xbb'
 bell=$'\xef\x83\xb3'; zoom=$'\xef\x80\x8e'; hosticon=$'\xef\x84\x88'
 
 active_root='#{W:,#{@workspace}}'
-# basename of the workspace root. #{b:...} only takes a variable *name*; given an
-# expanded value (as here) it returns the whole path, so strip the directories
-# with a regex substitution instead.
-ws="#{?$active_root,#{s|^.*/||:$active_root},#S}"
-git="#(git -C '$active_root' branch --show-current 2>/dev/null)"
+# which window option the plugin's filter compares: @workspace, or @worktree when
+# @workspaces-scope is 'worktree' (must match the plugin's setting)
+scope_key=@workspace; [[ $(tmux show-option -gqv @workspaces-scope) == worktree ]] && scope_key=@worktree
+# Workspace name: the plugin's @workspace-label (the repo folder, qualified when two
+# repos share a name), else the root's folder name. #{b:...} only takes a variable
+# *name*; given an expanded value (as here) it returns the whole path, so strip
+# the directories (and a bare repo's .git) with regex substitutions instead.
+active_label='#{W:,#{@workspace-label}}'
+ws="#{?$active_root,#{?$active_label,$active_label,#{s|\.git\$||:#{s|^.*/||:$active_root}}},#S}"
+# The branch of the checkout you are in, not of the workspace root: with worktrees
+# the repo is one workspace and each worktree has its own branch (detached HEAD
+# shows the short hash).
+git="#(p='#{pane_current_path}'; b=\$(git -C \"\$p\" branch --show-current 2>/dev/null); echo \"\${b:-\$(git -C \"\$p\" rev-parse --short HEAD 2>/dev/null)}\")"
 pill_pos=$(opt @axolotl-pill right)
 scheme=$(opt @axolotl-scheme terminal)
 numbers=$(opt @axolotl-numbers on)

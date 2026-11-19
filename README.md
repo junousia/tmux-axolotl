@@ -10,7 +10,7 @@ The bar is built from small widgets with Nerd Font glyphs:
 
 - **Left:** hostname, or your own segment list.
 - **Centre:** the current workspace's windows in one connected bar. Selection changes the colours while title positions stay fixed. Bell and zoom state have their own glyphs.
-- **Right:** branch and workspace joined into one pill group; the branch disappears outside a git repo.
+- **Right:** branch and workspace joined into one pill group; the branch disappears outside a git repo. The workspace pill is the repository (its name, or `parent/name` when two repos share one), and the branch pill is the branch of the checkout you are in, so a worktree shows its own branch under the same repo name. Needs tmux-git-workspaces 0.9.0+ for worktree grouping.
 
 To put the pill on the left edge instead (branch stays on the right):
 

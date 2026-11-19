@@ -403,6 +403,20 @@ class StatusLayoutTest(unittest.TestCase):
         self.assertIn(" core ", bar)
         self.assertIn(" main ", bar)  # the long branch segment did not collapse
 
+    def test_workspace_pill_prefers_the_plugin_label_and_strips_dot_git(self):
+        client = self.attach_client()
+        self.tmux("refresh-client", "-t", client, "-C", "140,24")
+        for window in self.windows:
+            self.tmux("set-option", "-w", "-t", window, "@workspace", "/srv/git/repo.git")
+        self.load_theme("off")
+        bar = STYLE.sub("", self.tmux("display-message", "-p", "-c", client, "#{E:@axolotl-right-rgb}"))
+        self.assertIn(" repo ", bar)
+        self.assertNotIn(".git", bar)
+        for window in self.windows:
+            self.tmux("set-option", "-w", "-t", window, "@workspace-label", "acme/api")
+        bar = STYLE.sub("", self.tmux("display-message", "-p", "-c", client, "#{E:@axolotl-right-rgb}"))
+        self.assertIn(" acme/api ", bar)
+
     def test_hidden_workspaces_do_not_shrink_the_panel_budget(self):
         # Regression: tabs of other workspaces (hidden by the filter) were counted
         # in the tab width, so many windows elsewhere collapsed the panels.
