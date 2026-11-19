@@ -27,7 +27,11 @@ build_segments() {
   local -a items
   # Centre tabs have a fixed position. Each panel may use only the cells between
   # its screen edge and the tab group, so account for the live window list.
-  budget="#{e|/:#{e|-:#{client_width},#{w:#{W:#{?#{!=:#{@workspace-slot},},#{E:@axolotl-win-$t},},#{E:@axolotl-cur-$t}}}},2}"
+  # Count only the tabs that are drawn: with the workspace filter on, windows of
+  # other workspaces are hidden (the plugin renders them empty) but still carry
+  # a slot, and counting them shrank the budget until the panels collapsed.
+  local shown="#{&&:#{!=:#{@workspace-slot},},#{||:#{==:#{@workspaces-filter},off},#{==:#{@workspace},#{W:,#{@workspace}}}}}"
+  budget="#{e|/:#{e|-:#{client_width},#{w:#{W:#{?$shown,#{E:@axolotl-win-$t},},#{E:@axolotl-cur-$t}}}},2}"
   for n in "${segs[@]}"; do
     icon=${SEG_ICON[$n]}
     short=${SEG_SHORT[$n]}

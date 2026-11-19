@@ -403,6 +403,29 @@ class StatusLayoutTest(unittest.TestCase):
         self.assertIn(" core ", bar)
         self.assertIn(" main ", bar)  # the long branch segment did not collapse
 
+    def test_hidden_workspaces_do_not_shrink_the_panel_budget(self):
+        # Regression: tabs of other workspaces (hidden by the filter) were counted
+        # in the tab width, so many windows elsewhere collapsed the panels.
+        client = self.attach_client()
+        for _ in range(12):
+            self.windows.append(self.tmux(
+                "new-window", "-n", "fish", "-P", "-F", "#{window_id}", "/bin/sh",
+            ).strip())
+        self.tmux("set-option", "-g", "@axolotl-segment-branch", "main")
+        for i, window in enumerate(self.windows):
+            here = i == 0
+            self.tmux("set-option", "-w", "-t", window, "@workspace", "/tmp/here" if here else "/tmp/other")
+            slot = 0 if here else i - 1
+            self.tmux("set-option", "-w", "-t", window, "@workspace-slot", str(slot))
+            self.tmux("set-option", "-w", "-t", window, "@workspace-pos", "only" if here else "mid")
+        self.tmux("select-window", "-t", self.windows[0])
+        self.load_theme("off")
+        self.tmux("refresh-client", "-t", client, "-C", "110,24")
+        raw = self.tmux("display-message", "-p", "-c", client, "#{E:@axolotl-right-rgb}")
+        bar = STYLE.sub("", raw)
+        self.assertIn(" main ", bar)
+        self.assertIn(" here ", bar)
+
     def test_builtin_branch_hides_without_breaking_workspace_pill(self):
         client = self.attach_client()
         self.tmux("refresh-client", "-t", client, "-C", "160,24")
