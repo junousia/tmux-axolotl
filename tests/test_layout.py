@@ -386,6 +386,23 @@ class StatusLayoutTest(unittest.TestCase):
             raw = self.tmux("display-message", "-p", "-c", client, "#{E:@axolotl-right-rgb}")
             self.assertIn(expected, STYLE.sub("", raw))
 
+    def test_workspace_pill_shows_only_the_basename_of_a_deep_root(self):
+        # Regression: #{b:} on an expanded value returns the whole path, which made
+        # the pill so wide that it collapsed on terminals with plenty of space.
+        client = self.attach_client()
+        self.tmux("refresh-client", "-t", client, "-C", "120,24")
+        root = "/home/user/clients/acme-corp/platform/services/payments/" \
+               "backend/applications/checkout-service-monorepo/packages/core"
+        for window in self.windows:
+            self.tmux("set-option", "-w", "-t", window, "@workspace", root)
+        self.tmux("set-option", "-g", "@axolotl-segment-branch", "main")
+        self.load_theme("off")
+        raw = self.tmux("display-message", "-p", "-c", client, "#{E:@axolotl-right-rgb}")
+        bar = STYLE.sub("", raw)
+        self.assertNotIn("/", bar)
+        self.assertIn(" core ", bar)
+        self.assertIn(" main ", bar)  # the long branch segment did not collapse
+
     def test_builtin_branch_hides_without_breaking_workspace_pill(self):
         client = self.attach_client()
         self.tmux("refresh-client", "-t", client, "-C", "160,24")

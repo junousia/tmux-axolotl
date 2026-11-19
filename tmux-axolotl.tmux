@@ -71,7 +71,10 @@ branch_icon=$'\xee\x82\xa0'; folder=$'\xef\x81\xbb'
 bell=$'\xef\x83\xb3'; zoom=$'\xef\x80\x8e'; hosticon=$'\xef\x84\x88'
 
 active_root='#{W:,#{@workspace}}'
-ws="#{?$active_root,#{b:$active_root},#S}"
+# basename of the workspace root. #{b:...} only takes a variable *name*; given an
+# expanded value (as here) it returns the whole path, so strip the directories
+# with a regex substitution instead.
+ws="#{?$active_root,#{s|^.*/||:$active_root},#S}"
 git="#(git -C '$active_root' branch --show-current 2>/dev/null)"
 pill_pos=$(opt @axolotl-pill right)
 scheme=$(opt @axolotl-scheme terminal)
